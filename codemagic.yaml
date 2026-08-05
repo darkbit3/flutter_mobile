@@ -1,0 +1,45 @@
+workflows:
+  android-release:
+    name: Android Release APK
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      java: 17
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Build release APK
+        script: flutter build apk --release
+    artifacts:
+      - build/app/outputs/flutter-apk/app-release.apk
+
+  ios-release:
+    name: iOS Release IPA
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Generate iOS project
+        script: |
+          if [ ! -d "ios" ]; then
+            flutter create --platforms=ios .
+          fi
+      - name: Install CocoaPods
+        script: |
+          cd ios && pod install
+      - name: Build iOS (no code signing — unsigned IPA)
+        script: |
+          flutter build ios --release --no-codesign
+      - name: Package unsigned IPA
+        script: |
+          mkdir -p build/ios/ipa
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r ../ipa/app-release-unsigned.ipa Payload
+    artifacts:
+      - build/ios/ipa/*.ipa

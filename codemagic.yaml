@@ -21,25 +21,27 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
+      - name: Generate iOS project (creates ios/ folder)
+        script: |
+          flutter create --platforms=ios --project-name semeta --org com.semeta .
       - name: Get Flutter packages
         script: flutter pub get
-      - name: Generate iOS project
+      - name: Install CocoaPods dependencies
         script: |
-          if [ ! -d "ios" ]; then
-            flutter create --platforms=ios .
-          fi
-      - name: Install CocoaPods
-        script: |
-          cd ios && pod install
-      - name: Build iOS (no code signing — unsigned IPA)
+          find . -name "Podfile" -maxdepth 2 | head -1 | xargs -I{} dirname {} | xargs -I{} sh -c 'cd {} && pod install'
+      - name: Build unsigned iOS release
         script: |
           flutter build ios --release --no-codesign
       - name: Package unsigned IPA
         script: |
           mkdir -p build/ios/ipa
-          cd build/ios/iphoneos
-          mkdir -p Payload
-          cp -r Runner.app Payload/
-          zip -r ../ipa/app-release-unsigned.ipa Payload
+          RUNNER_APP=$(find build/ios/iphoneos -name "*.app" | head -1)
+          if [ -n "$RUNNER_APP" ]; then
+            mkdir -p Payload
+            cp -r "$RUNNER_APP" Payload/
+            zip -r build/ios/ipa/Semeta-unsigned.ipa Payload
+            rm -rf Payload
+          fi
     artifacts:
       - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log

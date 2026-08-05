@@ -1,0 +1,5 @@
+- [/] Create lib/core/error/global_error_handler.dart
+- [/] Create lib/core/error/error_boundary.dart
+- [/] Create lib/core/error/app_error_screen.dart
+- [ ] Modify lib/main.dart
+- [ ] Modify lib/core/network/dio_client.dart

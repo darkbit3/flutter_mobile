@@ -13,6 +13,7 @@ import '../features/cashier/screens/cashier_dashboard_screen.dart';
 import '../features/cashier/screens/credit_list_screen.dart';
 import '../features/sales/screens/sales_screen.dart';
 import '../features/cutter/screens/cutter_screen.dart';
+import '../features/cutter/screens/cutter_dashboard_screen.dart';
 import '../shell/app_shell.dart';
 import '../shell/cashier_shell.dart';
 import '../shell/cutter_shell.dart';
@@ -134,7 +135,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path:        '/cutter-dashboard',
-            pageBuilder: (_, state) => _noAnim(state, const CutterScreen()),
+            pageBuilder: (_, state) => _noAnim(state, const CutterDashboardScreen()),
           ),
           GoRoute(
             path:        '/cutter-dashboard/change-password',

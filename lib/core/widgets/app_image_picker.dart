@@ -247,44 +247,87 @@ class AppImageDisplay extends StatelessWidget {
   const AppImageDisplay({
     super.key,
     required this.imageUrl,
+    this.width,
+    this.height,
+    this.size,
+    this.borderRadius,
     this.fit = BoxFit.cover,
     this.placeholderIcon = Icons.inventory_2_rounded,
     this.iconColor = AppColors.gold,
   });
 
   final String? imageUrl;
+  final double? width;
+  final double? height;
+  final double? size;
+  final BorderRadius? borderRadius;
   final BoxFit fit;
   final IconData placeholderIcon;
   final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
+    final w = size ?? width;
+    final h = size ?? height;
+
+    Widget child;
     if (imageUrl == null || imageUrl!.isEmpty) {
-      return Icon(placeholderIcon, color: iconColor);
-    }
-
-    final url = imageUrl!.trim();
-
-    // ── Base64 / Data URI ──────────────────────────────────────────────────
-    if (url.startsWith('data:image') || (!url.startsWith('http://') && !url.startsWith('https://'))) {
-      final bytes = _getDecodedBytes(url);
-      if (bytes != null) {
-        return Image.memory(
-          bytes,
+      child = Container(
+        width: w,
+        height: h,
+        color: AppColors.gold.withValues(alpha: 0.1),
+        child: Icon(placeholderIcon, color: iconColor, size: (w ?? 40) * 0.5),
+      );
+    } else {
+      final url = imageUrl!.trim();
+      if (url.startsWith('data:image') || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+        final bytes = _getDecodedBytes(url);
+        if (bytes != null) {
+          child = Image.memory(
+            bytes,
+            width: w,
+            height: h,
+            fit: fit,
+            gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => Container(
+              width: w,
+              height: h,
+              color: AppColors.gold.withValues(alpha: 0.1),
+              child: Icon(placeholderIcon, color: iconColor),
+            ),
+          );
+        } else {
+          child = Container(
+            width: w,
+            height: h,
+            color: AppColors.gold.withValues(alpha: 0.1),
+            child: Icon(placeholderIcon, color: iconColor),
+          );
+        }
+      } else {
+        child = Image.network(
+          url,
+          width: w,
+          height: h,
           fit: fit,
           gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => Icon(placeholderIcon, color: iconColor),
+          errorBuilder: (_, __, ___) => Container(
+            width: w,
+            height: h,
+            color: AppColors.gold.withValues(alpha: 0.1),
+            child: Icon(placeholderIcon, color: iconColor),
+          ),
         );
       }
-      return Icon(placeholderIcon, color: iconColor);
     }
 
-    // ── Network HTTP / HTTPS ─────────────────────────────────────────────────
-    return Image.network(
-      url,
-      fit: fit,
-      gaplessPlayback: true,
-      errorBuilder: (_, __, ___) => Icon(placeholderIcon, color: iconColor),
-    );
+    if (borderRadius != null) {
+      return ClipRRect(
+        borderRadius: borderRadius!,
+        child: child,
+      );
+    }
+
+    return child;
   }
 }

@@ -5,7 +5,6 @@ import '../models/cutter_model.dart';
 
 // Purple accent used throughout the cutter feature
 const _kPurple   = Color(0xFF8B5CF6);
-const _kPurpleBg = Color(0xFFF3F0FF);
 
 class CutterScreen extends ConsumerWidget {
   const CutterScreen({super.key});
@@ -399,29 +398,37 @@ class _CutterTableState extends State<_CutterTable> {
         side: BorderSide(color: Colors.grey.shade200),
       ),
       clipBehavior: Clip.antiAlias,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(_kPurple.withValues(alpha: 0.08)),
-          headingTextStyle: const TextStyle(
-              fontWeight: FontWeight.w700, color: Color(0xFF5B21B6), fontSize: 13),
-          dataRowMinHeight: 56,
-          dataRowMaxHeight: 56,
-          columnSpacing: 20,
-          columns: const [
-            DataColumn(label: Text('#')),
-            DataColumn(label: Text('Name')),
-            DataColumn(label: Text('Phone')),
-            DataColumn(label: Text('Password')),
-            DataColumn(label: Text('Status')),
-            DataColumn(label: Text('Active')),
-            DataColumn(label: Text('Actions')),
-            DataColumn(label: Text('Created')),
-          ],
-          rows: [
-            for (var i = 0; i < widget.cutters.length; i++)
-              _buildRow(i, widget.cutters[i]),
-          ],
+      child: Scrollbar(
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 900),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(_kPurple.withValues(alpha: 0.08)),
+              headingTextStyle: const TextStyle(
+                  fontWeight: FontWeight.w700, color: Color(0xFF5B21B6), fontSize: 13),
+              dataRowMinHeight: 58,
+              dataRowMaxHeight: 58,
+              columnSpacing: 24,
+              horizontalMargin: 16,
+              dividerThickness: 1,
+              columns: const [
+                DataColumn(label: SizedBox(width: 28,  child: Text('#'))),
+                DataColumn(label: SizedBox(width: 150, child: Text('Name'))),
+                DataColumn(label: SizedBox(width: 120, child: Text('Phone'))),
+                DataColumn(label: SizedBox(width: 160, child: Text('Password'))),
+                DataColumn(label: SizedBox(width: 80,  child: Text('Status'))),
+                DataColumn(label: SizedBox(width: 60,  child: Text('Active'))),
+                DataColumn(label: SizedBox(width: 100, child: Text('Actions'))),
+                DataColumn(label: SizedBox(width: 90,  child: Text('Created'))),
+              ],
+              rows: [
+                for (var i = 0; i < widget.cutters.length; i++)
+                  _buildRow(i, widget.cutters[i]),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -434,63 +441,93 @@ class _CutterTableState extends State<_CutterTable> {
         : '(no password)';
 
     return DataRow(cells: [
-      DataCell(Text('${index + 1}', style: TextStyle(color: Colors.grey.shade500, fontSize: 13))),
-      DataCell(Row(children: [
-        CircleAvatar(
-          radius: 15,
-          backgroundColor: _kPurple.withValues(alpha: 0.12),
-          child: Text(
-            c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
-            style: const TextStyle(color: _kPurple, fontWeight: FontWeight.bold, fontSize: 13),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-      ])),
-      DataCell(Text(c.phone, style: TextStyle(color: Colors.grey.shade700, fontSize: 13))),
-      DataCell(Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            showPwd ? pwdText : '••••••••',
-            style: TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 13,
-              color: Colors.grey.shade800,
-              letterSpacing: showPwd ? 0 : 2,
+      DataCell(SizedBox(
+        width: 28,
+        child: Text('${index + 1}', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+      )),
+      DataCell(SizedBox(
+        width: 150,
+        child: Row(children: [
+          CircleAvatar(
+            radius: 15,
+            backgroundColor: _kPurple.withValues(alpha: 0.12),
+            child: Text(
+              c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
+              style: const TextStyle(color: _kPurple, fontWeight: FontWeight.bold, fontSize: 13),
             ),
           ),
-          const SizedBox(width: 4),
-          IconButton(
-            icon: Icon(showPwd ? Icons.visibility_off : Icons.visibility,
-                size: 18, color: Colors.grey.shade500),
-            onPressed: () => setState(() => _visiblePwd[c.id] = !showPwd),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              c.name,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-        ],
+        ]),
       )),
-      DataCell(_StatusBadge(status: c.status)),
-      DataCell(Switch(
-        value: c.isActive,
-        activeThumbColor: _kPurple,
-        activeTrackColor: _kPurple.withValues(alpha: 0.4),
-        onChanged: (_) => widget.onToggleStatus(c.id, c.status),
+      DataCell(SizedBox(
+        width: 120,
+        child: Text(c.phone, style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
       )),
-      DataCell(Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            tooltip: 'Edit',
-            icon: const Icon(Icons.edit_rounded, size: 18, color: Color(0xFF3B82F6)),
-            onPressed: () => widget.onEdit(c),
-          ),
-          IconButton(
-            tooltip: 'Reset Password',
-            icon: const Icon(Icons.lock_reset_rounded, size: 18, color: Color(0xFFF59E0B)),
-            onPressed: () => widget.onResetPassword(c),
-          ),
-        ],
+      DataCell(SizedBox(
+        width: 160,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                showPwd ? pwdText : '••••••••',
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                  color: Colors.grey.shade800,
+                  letterSpacing: showPwd ? 0 : 2,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            IconButton(
+              icon: Icon(showPwd ? Icons.visibility_off : Icons.visibility,
+                  size: 18, color: Colors.grey.shade500),
+              onPressed: () => setState(() => _visiblePwd[c.id] = !showPwd),
+            ),
+          ],
+        ),
       )),
-      DataCell(Text(_fmtDate(c.createdAt), style: TextStyle(color: Colors.grey.shade500, fontSize: 12))),
+      DataCell(SizedBox(width: 80, child: _StatusBadge(status: c.status))),
+      DataCell(SizedBox(
+        width: 60,
+        child: Switch(
+          value: c.isActive,
+          activeThumbColor: _kPurple,
+          activeTrackColor: _kPurple.withValues(alpha: 0.4),
+          onChanged: (_) => widget.onToggleStatus(c.id, c.status),
+        ),
+      )),
+      DataCell(SizedBox(
+        width: 100,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: 'Edit',
+              icon: const Icon(Icons.edit_rounded, size: 18, color: Color(0xFF3B82F6)),
+              onPressed: () => widget.onEdit(c),
+            ),
+            IconButton(
+              tooltip: 'Reset Password',
+              icon: const Icon(Icons.lock_reset_rounded, size: 18, color: Color(0xFFF59E0B)),
+              onPressed: () => widget.onResetPassword(c),
+            ),
+          ],
+        ),
+      )),
+      DataCell(SizedBox(
+        width: 90,
+        child: Text(_fmtDate(c.createdAt),
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+      )),
     ]);
   }
 

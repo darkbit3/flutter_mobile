@@ -967,10 +967,11 @@ class _AddMaterialSheet extends StatefulWidget {
 }
 
 class _AddMaterialSheetState extends State<_AddMaterialSheet> {
-  final _nameCtr      = TextEditingController();
-  final _costPriceCtr = TextEditingController();
-  final _sellPriceCtr = TextEditingController();
-  final _mainQtyCtr   = TextEditingController();
+  final _nameCtr        = TextEditingController();
+  final _costPriceCtr   = TextEditingController();
+  final _sellPriceCtr   = TextEditingController();
+  final _mainQtyCtr     = TextEditingController();
+  final _customColorCtr = TextEditingController();
 
   String _unit = 'Meter';
   final List<String> _images = []; // Multiple base64 images
@@ -982,6 +983,7 @@ class _AddMaterialSheetState extends State<_AddMaterialSheet> {
     _costPriceCtr.dispose();
     _sellPriceCtr.dispose();
     _mainQtyCtr.dispose();
+    _customColorCtr.dispose();
     for (final e in _colorEntries) { e.quantityCtr.dispose(); }
     super.dispose();
   }
@@ -1409,26 +1411,67 @@ class _AddMaterialSheetState extends State<_AddMaterialSheet> {
               const SizedBox(height: 10),
             ],
 
+            // ── Add Color Variant (Text input + Swatches) ────────────────
             const Text('Add Color Variant',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMid)),
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.dark)),
             const SizedBox(height: 8),
 
+            // Quick text input for adding color
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _customColorCtr,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: 'Type color name (e.g. Burgundy, Navy #2)...',
+                      prefixIcon: const Icon(Icons.palette_outlined, size: 18),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    side: const BorderSide(color: AppColors.gold),
+                  ),
+                  onPressed: () {
+                    final cName = _customColorCtr.text.trim();
+                    if (cName.isNotEmpty) {
+                      final color = _colorForName(cName);
+                      setState(() {
+                        _colorEntries.add(_ColorEntry(
+                          colorName: cName,
+                          color: color,
+                          quantityCtr: TextEditingController(text: '0'),
+                        ));
+                        _customColorCtr.clear();
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.add_rounded, size: 16, color: AppColors.gold),
+                  label: const Text('Add', style: TextStyle(color: AppColors.dark, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Color swatches (allows tapping multiple times to add multiple variants)
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 ..._kSwatches.map((swatch) {
-                  final added = _colorEntries.any((e) => e.colorName == swatch.name);
+                  final count = _colorEntries.where((e) => e.colorName.toLowerCase() == swatch.name.toLowerCase()).length;
                   return GestureDetector(
-                    onTap: added
-                        ? null
-                        : () => setState(() => _colorEntries.add(_ColorEntry(
-                              colorName: swatch.name,
-                              color: swatch.color,
-                              quantityCtr: TextEditingController(text: '0'),
-                            ))),
+                    onTap: () => setState(() => _colorEntries.add(_ColorEntry(
+                          colorName: swatch.name,
+                          color: swatch.color,
+                          quantityCtr: TextEditingController(text: '0'),
+                        ))),
                     child: Tooltip(
-                      message: swatch.name,
+                      message: count > 0 ? '${swatch.name} ($count added)' : swatch.name,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
@@ -1438,25 +1481,36 @@ class _AddMaterialSheetState extends State<_AddMaterialSheet> {
                               color: swatch.color,
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: added ? AppColors.gold : Colors.black.withValues(alpha: 0.12),
-                                width: added ? 2.5 : 1.2,
+                                color: count > 0 ? AppColors.gold : Colors.black.withValues(alpha: 0.15),
+                                width: count > 0 ? 2.5 : 1,
                               ),
+                              boxShadow: count > 0
+                                  ? [BoxShadow(color: AppColors.gold.withValues(alpha: 0.4), blurRadius: 4)]
+                                  : null,
                             ),
                           ),
-                          if (added)
-                            Icon(Icons.check_rounded, size: 16,
-                                color: ThemeData.estimateBrightnessForColor(swatch.color) == Brightness.light
-                                    ? AppColors.dark : Colors.white),
+                          if (count > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppColors.dark,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '$count',
+                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                              ),
+                            ),
                         ],
                       ),
                     ),
                   );
                 }),
-                // Custom color button
+                // Rainbow custom color dialog button
                 GestureDetector(
                   onTap: _openCustomColorDialog,
                   child: Tooltip(
-                    message: 'Custom color',
+                    message: 'Pick custom color',
                     child: ClipOval(
                       child: Container(
                         width: 36, height: 36,
@@ -1476,6 +1530,7 @@ class _AddMaterialSheetState extends State<_AddMaterialSheet> {
               ],
             ),
             const SizedBox(height: 16),
+
 
             // Prices
             Row(

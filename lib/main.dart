@@ -7,16 +7,17 @@ import 'core/theme/app_theme.dart';
 import 'router/app_router.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // 🚀 Kick off server warm-up immediately — runs in background while app boots
-  warmUpServer();
-
   // 1️⃣  Register global Flutter + platform error hooks
   GlobalErrorHandler.init();
 
-  // 2️⃣  Wrap entire app in a guarded zone to catch async errors
+  // 2️⃣  Wrap entire app in a guarded zone to catch async errors.
+  //     ensureInitialized must be called in the same zone as runApp.
   await GlobalErrorHandler.runGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+
+    // 🚀 Kick off server warm-up immediately — runs in background while app boots
+    warmUpServer();
+
     runApp(
       const ProviderScope(
         child: _AppErrorBoundary(

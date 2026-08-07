@@ -4,7 +4,7 @@ class ApiConstants {
   /// localhost  → Windows desktop / iOS simulator (port 5000)
   /// 10.0.2.2   → Android emulator (port 5000)
   /// 192.168.x.x → physical device (use your LAN IP)
-  static const String baseUrl = 'https://backend-l34f.onrender.com/api';
+  static const String baseUrl = 'http://localhost:5000/api';
 
   // ── User auth endpoints ─────────────────────────────────────────────────
   static const String userLogin          = '/user-auth/login';
@@ -27,4 +27,7 @@ class ApiConstants {
   static const String credits            = '/credits';
   static const String creditsOwner       = '/credits/owner';
   static const String creditsOwnerStats  = '/credits/owner/stats';
+
+  // ── Cutter endpoints ─────────────────────────────────────────────────────
+  static const String cutters = '/cutters';
 }

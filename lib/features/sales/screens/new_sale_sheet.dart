@@ -27,9 +27,10 @@ class _SaleItem {
   }
 
   Map<String, dynamic> toMap() => {
-        'material':  selectedMaterial!.name,
-        'quantity':  double.parse(quantityCtrl.text),
-        'unitPrice': selectedMaterial!.unitPrice,
+        'materialId': selectedMaterial!.id,
+        'material':   selectedMaterial!.name,
+        'quantity':   double.parse(quantityCtrl.text),
+        'unitPrice':  selectedMaterial!.unitPrice,
       };
 }
 
@@ -651,31 +652,50 @@ class _MaterialPickerSheetState extends State<_MaterialPickerSheet> {
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF1F2937)),
                         ),
-                        subtitle: Row(
+                      subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              margin: const EdgeInsets.only(top: 4),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: bg,
-                                borderRadius: BorderRadius.circular(5),
-                              ),
-                              child: Text(
-                                isMeter
-                                    ? '${mat.quantity.toStringAsFixed(mat.quantity == mat.quantity.truncateToDouble() ? 0 : 2)} m'
-                                    : '${mat.quantity.toStringAsFixed(0)} pcs',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: color),
-                              ),
+                            Row(
+                              children: [
+                                Container(
+                                  margin: const EdgeInsets.only(top: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: bg,
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: Text(
+                                    '${mat.quantity.toStringAsFixed(mat.quantity == mat.quantity.truncateToDouble() ? 0 : 2)} ${mat.unitLabel} left',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: mat.isLowStock ? Colors.red : color),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${mat.unitPrice.toStringAsFixed(2)} ETB/${mat.unitLabel}',
+                                  style: const TextStyle(
+                                      fontSize: 11, color: Colors.grey),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${mat.unitPrice.toStringAsFixed(2)} ETB/${mat.unitLabel}',
-                              style: const TextStyle(
-                                  fontSize: 11, color: Colors.grey),
+                            const SizedBox(height: 4),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(3),
+                              child: LinearProgressIndicator(
+                                value: mat.remainingPercentage / 100,
+                                minHeight: 4,
+                                backgroundColor: Colors.grey.shade200,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  mat.remainingPercentage <= 20
+                                      ? Colors.red
+                                      : mat.remainingPercentage <= 50
+                                          ? Colors.orange
+                                          : color,
+                                ),
+                              ),
                             ),
                           ],
                         ),

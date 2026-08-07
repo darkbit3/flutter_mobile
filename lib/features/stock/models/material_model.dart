@@ -30,7 +30,7 @@ class MaterialItem {
     required this.unit,
     required this.unitPrice,
     this.initialPrice,
-    this.imageUrl,
+    this.images = const [],
     this.colors = const [],
     required this.createdAt,
   });
@@ -43,9 +43,12 @@ class MaterialItem {
   final String unit; // 'Meter' | 'Piece' | 'Kilogram'
   final double unitPrice; // Selling Price per unit
   final double? initialPrice; // Purchase / Cost Price per unit
-  final String? imageUrl;
+  final List<String> images; // Multiple images (base64 or URLs)
   final List<MaterialColorVariant> colors;
   final String createdAt;
+
+  // Convenience: first image or null
+  String? get imageUrl => images.isNotEmpty ? images.first : null;
 
   double get sellingPrice => unitPrice;
   double get costPrice => initialPrice ?? unitPrice;
@@ -86,6 +89,17 @@ class MaterialItem {
           .toList();
     }
 
+    // Parse images: backend now returns images[] array
+    List<String> parsedImages = [];
+    if (json['images'] != null && json['images'] is List) {
+      parsedImages = (json['images'] as List)
+          .map((e) => e.toString())
+          .where((s) => s.isNotEmpty)
+          .toList();
+    } else if (json['image_url'] != null && json['image_url'].toString().isNotEmpty) {
+      parsedImages = [json['image_url'] as String];
+    }
+
     return MaterialItem(
       id: json['id'] as String,
       userId: json['user_id'] as String,
@@ -97,7 +111,7 @@ class MaterialItem {
       initialPrice: json['initial_price'] != null
           ? (json['initial_price'] as num).toDouble()
           : null,
-      imageUrl: json['image_url'] as String?,
+      images: parsedImages,
       colors: parsedColors,
       createdAt: json['created_at'] as String,
     );

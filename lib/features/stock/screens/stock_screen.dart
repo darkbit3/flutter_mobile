@@ -471,7 +471,7 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                                 unit:         selectedUnit,
                                 unitPrice:    sellPrice,
                                 initialPrice: costPrice > 0 ? costPrice : null,
-                                imageUrl:     img.isNotEmpty ? img : null,
+                                images:       img.isNotEmpty ? [img] : null,
                                 colors:       colorPayload.isNotEmpty
                                     ? colorPayload
                                     : null,

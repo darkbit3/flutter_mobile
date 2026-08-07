@@ -29,7 +29,7 @@ class MaterialNotifier extends AsyncNotifier<List<MaterialItem>> {
     required String unit,
     required double unitPrice,
     double? initialPrice,
-    String? imageUrl,
+    List<String>? images,
     List<Map<String, dynamic>>? colors,
   }) async {
     final repo = ref.read(materialRepositoryProvider);
@@ -39,7 +39,7 @@ class MaterialNotifier extends AsyncNotifier<List<MaterialItem>> {
       unit:         unit,
       unitPrice:    unitPrice,
       initialPrice: initialPrice,
-      imageUrl:     imageUrl,
+      images:       images,
       colors:       colors,
     );
     ref.invalidate(materialsProvider);

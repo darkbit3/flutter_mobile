@@ -42,17 +42,17 @@ class MaterialRepository {
     required String unit,
     required double unitPrice,
     double? initialPrice,
-    String? imageUrl,
+    List<String>? images, // Multiple images as base64 strings
     List<Map<String, dynamic>>? colors,
   }) async {
     try {
       final res = await _dio.post(ApiConstants.materials, data: {
-        'name':         name,
-        'quantity':     quantity,
-        'unit':         unit,
-        'unitPrice':    unitPrice,
+        'name': name,
+        'quantity': quantity,
+        'unit': unit,
+        'unitPrice': unitPrice,
         if (initialPrice != null) 'initialPrice': initialPrice,
-        if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
+        if (images != null && images.isNotEmpty) 'images': images,
         if (colors != null && colors.isNotEmpty) 'colors': colors,
       });
       return MaterialItem.fromJson(res.data['data'] as Map<String, dynamic>);

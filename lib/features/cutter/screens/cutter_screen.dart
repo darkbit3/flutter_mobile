@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/cutter_provider.dart';
 import '../models/cutter_model.dart';
@@ -388,9 +389,41 @@ class _CutterTable extends StatefulWidget {
 
 class _CutterTableState extends State<_CutterTable> {
   final Map<String, bool> _visiblePwd = {};
+  final _hScroll = ScrollController();
+
+  @override
+  void dispose() {
+    _hScroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final table = DataTable(
+      headingRowColor: WidgetStateProperty.all(_kPurple.withValues(alpha: 0.08)),
+      headingTextStyle: const TextStyle(
+          fontWeight: FontWeight.w700, color: Color(0xFF5B21B6), fontSize: 13),
+      dataRowMinHeight: 58,
+      dataRowMaxHeight: 58,
+      columnSpacing: 24,
+      horizontalMargin: 16,
+      dividerThickness: 1,
+      columns: const [
+        DataColumn(label: SizedBox(width: 28,  child: Text('#'))),
+        DataColumn(label: SizedBox(width: 150, child: Text('Name'))),
+        DataColumn(label: SizedBox(width: 120, child: Text('Phone'))),
+        DataColumn(label: SizedBox(width: 160, child: Text('Password'))),
+        DataColumn(label: SizedBox(width: 80,  child: Text('Status'))),
+        DataColumn(label: SizedBox(width: 60,  child: Text('Active'))),
+        DataColumn(label: SizedBox(width: 100, child: Text('Actions'))),
+        DataColumn(label: SizedBox(width: 90,  child: Text('Created'))),
+      ],
+      rows: [
+        for (var i = 0; i < widget.cutters.length; i++)
+          _buildRow(i, widget.cutters[i]),
+      ],
+    );
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -398,38 +431,44 @@ class _CutterTableState extends State<_CutterTable> {
         side: BorderSide(color: Colors.grey.shade200),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Scrollbar(
-        thumbVisibility: true,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 900),
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(_kPurple.withValues(alpha: 0.08)),
-              headingTextStyle: const TextStyle(
-                  fontWeight: FontWeight.w700, color: Color(0xFF5B21B6), fontSize: 13),
-              dataRowMinHeight: 58,
-              dataRowMaxHeight: 58,
-              columnSpacing: 24,
-              horizontalMargin: 16,
-              dividerThickness: 1,
-              columns: const [
-                DataColumn(label: SizedBox(width: 28,  child: Text('#'))),
-                DataColumn(label: SizedBox(width: 150, child: Text('Name'))),
-                DataColumn(label: SizedBox(width: 120, child: Text('Phone'))),
-                DataColumn(label: SizedBox(width: 160, child: Text('Password'))),
-                DataColumn(label: SizedBox(width: 80,  child: Text('Status'))),
-                DataColumn(label: SizedBox(width: 60,  child: Text('Active'))),
-                DataColumn(label: SizedBox(width: 100, child: Text('Actions'))),
-                DataColumn(label: SizedBox(width: 90,  child: Text('Created'))),
-              ],
-              rows: [
-                for (var i = 0; i < widget.cutters.length; i++)
-                  _buildRow(i, widget.cutters[i]),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag-scrollable table
+          Scrollbar(
+            controller: _hScroll,
+            thumbVisibility: true,
+            trackVisibility: true,
+            child: ScrollConfiguration(
+              // Enable drag-to-scroll on all platforms (including touch + desktop)
+              behavior: _DragScrollBehavior(),
+              child: SingleChildScrollView(
+                controller: _hScroll,
+                scrollDirection: Axis.horizontal,
+                physics: const ClampingScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 900),
+                  child: table,
+                ),
+              ),
+            ),
+          ),
+          // Scroll hint label when table overflows
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.swipe_rounded, size: 14, color: Colors.grey.shade400),
+                const SizedBox(width: 4),
+                Text(
+                  'Swipe left / right to see all columns',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                ),
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -938,4 +977,18 @@ class _ErrorView extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Drag scroll behavior — enables mouse/touch drag on horizontal scroll ───────
+// By default Flutter desktop only scrolls with the scrollbar or mouse wheel.
+// This overrides that so any drag gesture also scrolls horizontally.
+
+class _DragScrollBehavior extends ScrollBehavior {
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+      };
 }

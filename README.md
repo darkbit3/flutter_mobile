@@ -47,8 +47,7 @@ lib/
 
 2. **Set the backend URL** in `lib/core/constants/api_constants.dart`:
    ```dart
-   // Android emulator → 10.0.2.2 points to your host machine
-   static const String baseUrl = 'http://10.0.2.2:5000/api';
+   static const String baseUrl = 'https://yonas-backend.onrender.com/api';
 
    // Physical device → use your machine's local IP e.g.
    // static const String baseUrl = 'http://192.168.1.x:5000/api';

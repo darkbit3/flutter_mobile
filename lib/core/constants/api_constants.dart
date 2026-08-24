@@ -1,10 +1,7 @@
 class ApiConstants {
   ApiConstants._();
 
-  /// localhost  → Windows desktop / iOS simulator (port 5000)
-  /// 10.0.2.2   → Android emulator (port 5000)
-  /// 192.168.x.x → physical device (use your LAN IP)
-  static const String baseUrl = 'http://localhost:5000/api';
+  static const String baseUrl = 'https://yonas-backend.onrender.com/api';
 
   // ── User auth endpoints ─────────────────────────────────────────────────
   static const String userLogin          = '/user-auth/login';

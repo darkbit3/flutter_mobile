@@ -43,7 +43,7 @@ final dioProvider = Provider<Dio>((ref) {
 Future<void> warmUpServer() async {
   try {
     await Dio().get(
-      '${ApiConstants.baseUrl}/health',
+      '${ApiConstants.baseUrl.replaceFirst('/api', '')}/health',
       options: Options(
         sendTimeout:    const Duration(seconds: 5),
         receiveTimeout: const Duration(seconds: 60),

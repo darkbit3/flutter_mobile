@@ -22,7 +22,10 @@ class CutterScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: _Header(total: state.cutters.length),
+                child: _Header(
+                  total: state.cutters.length,
+                  active: state.cutters.where((cutter) => cutter.isActive).length,
+                ),
               ),
             ),
             if (state.isLoading)
@@ -314,8 +317,9 @@ class CutterScreen extends ConsumerWidget {
 // ── Header ────────────────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
-  const _Header({required this.total});
+  const _Header({required this.total, required this.active});
   final int total;
+  final int active;
 
   @override
   Widget build(BuildContext context) {
@@ -355,9 +359,22 @@ class _Header extends StatelessWidget {
                 const Text('Cutters',
                     style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 2),
-                Text(
-                  '$total cutter${total == 1 ? '' : 's'} registered',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
+                Row(
+                  children: [
+                    Text(
+                      '$total cutter${total == 1 ? '' : 's'} registered',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text('$active active', style: const TextStyle(color: Colors.white, fontSize: 11)),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -388,7 +405,6 @@ class _CutterTable extends StatefulWidget {
 }
 
 class _CutterTableState extends State<_CutterTable> {
-  final Map<String, bool> _visiblePwd = {};
   final _hScroll = ScrollController();
 
   @override
@@ -412,7 +428,6 @@ class _CutterTableState extends State<_CutterTable> {
         DataColumn(label: SizedBox(width: 28,  child: Text('#'))),
         DataColumn(label: SizedBox(width: 150, child: Text('Name'))),
         DataColumn(label: SizedBox(width: 120, child: Text('Phone'))),
-        DataColumn(label: SizedBox(width: 160, child: Text('Password'))),
         DataColumn(label: SizedBox(width: 80,  child: Text('Status'))),
         DataColumn(label: SizedBox(width: 60,  child: Text('Active'))),
         DataColumn(label: SizedBox(width: 100, child: Text('Actions'))),
@@ -424,7 +439,26 @@ class _CutterTableState extends State<_CutterTable> {
       ],
     );
 
-    return Card(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 620) {
+          return Column(
+            children: [
+              for (var i = 0; i < widget.cutters.length; i++) ...[
+                _CutterCard(
+                  cutter: widget.cutters[i],
+                  onToggleStatus: () => widget.onToggleStatus(
+                      widget.cutters[i].id, widget.cutters[i].status),
+                  onEdit: () => widget.onEdit(widget.cutters[i]),
+                  onResetPassword: () => widget.onResetPassword(widget.cutters[i]),
+                ),
+                if (i < widget.cutters.length - 1) const SizedBox(height: 10),
+              ],
+            ],
+          );
+        }
+
+        return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
@@ -470,15 +504,12 @@ class _CutterTableState extends State<_CutterTable> {
           ),
         ],
       ),
+        );
+      },
     );
   }
 
   DataRow _buildRow(int index, CutterModel c) {
-    final showPwd = _visiblePwd[c.id] ?? false;
-    final pwdText = (c.plainPassword != null && c.plainPassword!.isNotEmpty)
-        ? c.plainPassword!
-        : '(no password)';
-
     return DataRow(cells: [
       DataCell(SizedBox(
         width: 28,
@@ -508,31 +539,6 @@ class _CutterTableState extends State<_CutterTable> {
       DataCell(SizedBox(
         width: 120,
         child: Text(c.phone, style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
-      )),
-      DataCell(SizedBox(
-        width: 160,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-              child: Text(
-                showPwd ? pwdText : '••••••••',
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 13,
-                  color: Colors.grey.shade800,
-                  letterSpacing: showPwd ? 0 : 2,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            IconButton(
-              icon: Icon(showPwd ? Icons.visibility_off : Icons.visibility,
-                  size: 18, color: Colors.grey.shade500),
-              onPressed: () => setState(() => _visiblePwd[c.id] = !showPwd),
-            ),
-          ],
-        ),
       )),
       DataCell(SizedBox(width: 80, child: _StatusBadge(status: c.status))),
       DataCell(SizedBox(
@@ -575,6 +581,88 @@ class _CutterTableState extends State<_CutterTable> {
     try {
       final dt = DateTime.parse(iso);
       return '${dt.day}/${dt.month}/${dt.year}';
+    } catch (_) {
+      return iso;
+    }
+  }
+}
+
+class _CutterCard extends StatelessWidget {
+  const _CutterCard({
+    required this.cutter,
+    required this.onToggleStatus,
+    required this.onEdit,
+    required this.onResetPassword,
+  });
+
+  final CutterModel cutter;
+  final VoidCallback onToggleStatus;
+  final VoidCallback onEdit;
+  final VoidCallback onResetPassword;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = cutter.isActive ? _kPurple : Colors.orange.shade700;
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: accent.withValues(alpha: 0.22)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 10, 12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 23,
+                  backgroundColor: accent.withValues(alpha: 0.12),
+                  child: Text(
+                    cutter.name.isNotEmpty ? cutter.name[0].toUpperCase() : '?',
+                    style: TextStyle(color: accent, fontSize: 18, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(cutter.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 4),
+                      Text(cutter.phone, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                    ],
+                  ),
+                ),
+                _StatusBadge(status: cutter.status),
+              ],
+            ),
+            const Divider(height: 22),
+            Row(
+              children: [
+                Text('Joined ${_formatDate(cutter.createdAt)}', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                const Spacer(),
+                IconButton(tooltip: 'Edit', onPressed: onEdit, icon: const Icon(Icons.edit_rounded, color: Color(0xFF3B82F6), size: 20)),
+                IconButton(tooltip: 'Reset Password', onPressed: onResetPassword, icon: const Icon(Icons.lock_reset_rounded, color: Color(0xFFF59E0B), size: 20)),
+                Switch(
+                  value: cutter.isActive,
+                  activeThumbColor: _kPurple,
+                  onChanged: (_) => onToggleStatus(),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(String? iso) {
+    if (iso == null) return '—';
+    try {
+      final date = DateTime.parse(iso);
+      return '${date.day}/${date.month}/${date.year}';
     } catch (_) {
       return iso;
     }

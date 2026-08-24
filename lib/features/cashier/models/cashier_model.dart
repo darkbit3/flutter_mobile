@@ -4,7 +4,6 @@ class CashierModel {
     required this.name,
     required this.phone,
     required this.status,
-    this.plainPassword,
     this.createdAt,
   });
 
@@ -12,7 +11,6 @@ class CashierModel {
   final String  name;
   final String  phone;
   final String  status;         // 'Active' | 'Inactive'
-  final String? plainPassword;
   final String? createdAt;      // ISO date string
 
   bool get isActive => status == 'Active';
@@ -23,7 +21,6 @@ class CashierModel {
       name:          json['name']           as String,
       phone:         json['phone']          as String,
       status:        json['status']         as String? ?? 'Active',
-      plainPassword: json['plain_password'] as String?,
       createdAt:     (json['created_at'] ?? json['createdAt']) as String?,
     );
   }

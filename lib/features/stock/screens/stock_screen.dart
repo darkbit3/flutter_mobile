@@ -5,8 +5,10 @@ import '../../../core/widgets/app_image_picker.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../sales/data/sale_repository.dart';
 import '../../sales/models/sale_model.dart';
+import '../data/material_repository.dart';
 import '../providers/material_provider.dart';
 import '../models/material_model.dart';
+import 'material_screen.dart';
 
 // ── Owner sales (for "Sales by Cashiers" section) ────────────────────────────
 final ownerSalesProvider = FutureProvider.autoDispose<List<SaleModel>>((ref) async {
@@ -23,498 +25,42 @@ class StockScreen extends ConsumerStatefulWidget {
   ConsumerState<StockScreen> createState() => _StockScreenState();
 }
 
-class _ColorEntry {
-  _ColorEntry({required this.colorName, required this.quantityCtr});
-  final String colorName;
-  final TextEditingController quantityCtr;
-}
-
 class _StockScreenState extends ConsumerState<StockScreen> {
-  // ── Add Material Sheet ───────────────────────────────────────────────────
   void _openCreateMaterialSheet() {
-    final nameCtr      = TextEditingController();
-    final imageCtr     = TextEditingController();
-    final costPriceCtr = TextEditingController();
-    final sellPriceCtr = TextEditingController();
-    final mainQtyCtr   = TextEditingController();
-    String selectedUnit = 'Meter';
-
-    List<_ColorEntry> colorEntries = [];
-    final newColorNameCtr = TextEditingController();
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (_, setSheetState) {
-          final unitSuffix = selectedUnit == 'Meter'
-              ? 'm'
-              : selectedUnit == 'Kilogram'
-                  ? 'kg'
-                  : 'pcs';
-
-          double totalQtyFromColors = 0;
-          for (final entry in colorEntries) {
-            totalQtyFromColors +=
-                double.tryParse(entry.quantityCtr.text.trim()) ?? 0;
-          }
-
-          final manualQty = double.tryParse(mainQtyCtr.text.trim()) ?? 0;
-          final finalQty =
-              colorEntries.isNotEmpty ? totalQtyFromColors : manualQty;
-
-          final costPrice = double.tryParse(costPriceCtr.text.trim()) ?? 0;
-          final sellPrice = double.tryParse(sellPriceCtr.text.trim()) ?? 0;
-          final totalCost = finalQty * costPrice;
-          final totalSales = finalQty * sellPrice;
-          final totalProfit = totalSales - totalCost;
-
-          return Container(
-            padding: EdgeInsets.only(
-              top: 24,
-              left: 20,
-              right: 20,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 28,
-            ),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ── Sheet header ──────────────────────────────────────────
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.gold.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.add_box_rounded,
-                            color: AppColors.gold, size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Text(
-                          'Add Stock Material',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.dark,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.of(ctx).pop(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-
-                  // ── Image / Photo Picker ─────────────────────────────────
-                  AppImagePickerBox(
-                    base64Image: imageCtr.text.isNotEmpty ? imageCtr.text : null,
-                    onImagePicked: (b64) => setSheetState(() => imageCtr.text = b64),
-                    onImageRemoved: () => setSheetState(() => imageCtr.text = ''),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // ── Material Name ─────────────────────────────────────────
-                  TextField(
-                    controller: nameCtr,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: InputDecoration(
-                      labelText: 'Material Name',
-                      hintText: 'e.g. Silk Fabric, Buttons, Leather',
-                      prefixIcon: const Icon(Icons.category_outlined),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ── 3 Unit selector: Meter | Piece | Kilogram ──────────────
-                  const Text(
-                    'Unit',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textMid,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: ['Meter', 'Piece', 'Kilogram'].map((u) {
-                      final isSelected = selectedUnit == u;
-                      final uLabel = u == 'Meter'
-                          ? 'Meter (m)'
-                          : u == 'Piece'
-                              ? 'Piece (pcs)'
-                              : 'Kilo (kg)';
-                      final uIcon = u == 'Meter'
-                          ? Icons.straighten_rounded
-                          : u == 'Piece'
-                              ? Icons.widgets_rounded
-                              : Icons.scale_rounded;
-
-                      return Expanded(
-                        child: GestureDetector(
-                          onTap: () => setSheetState(() => selectedUnit = u),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.gold
-                                  : AppColors.background,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.gold
-                                    : AppColors.border,
-                                width: 2,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  uIcon,
-                                  color: isSelected
-                                      ? AppColors.dark
-                                      : AppColors.textMid,
-                                  size: 20,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  uLabel,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 11.5,
-                                    color: isSelected
-                                        ? AppColors.dark
-                                        : AppColors.textMid,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ── Color Variants Section ────────────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Color Content & Quantities ($unitSuffix)',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.dark,
-                        ),
-                      ),
-                      Text(
-                        'Total: $finalQty $unitSuffix',
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.gold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  if (colorEntries.isNotEmpty) ...[
-                    ...colorEntries.map((e) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: AppColors.dark.withValues(alpha: 0.06),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  e.colorName,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: TextField(
-                                  controller: e.quantityCtr,
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                          decimal: true),
-                                  onChanged: (_) => setSheetState(() {}),
-                                  decoration: InputDecoration(
-                                    isDense: true,
-                                    labelText: 'Quantity ($unitSuffix)',
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline_rounded,
-                                    color: Colors.red, size: 20),
-                                onPressed: () {
-                                  setSheetState(() {
-                                    e.quantityCtr.dispose();
-                                    colorEntries.remove(e);
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                        )),
-                    const SizedBox(height: 8),
-                  ] else ...[
-                    TextField(
-                      controller: mainQtyCtr,
-                      keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true),
-                      onChanged: (_) => setSheetState(() {}),
-                      decoration: InputDecoration(
-                        labelText: 'Total Quantity ($unitSuffix)',
-                        hintText: 'Enter total quantity / weight',
-                        prefixIcon: const Icon(Icons.numbers_rounded),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-
-                  // Add Color Entry Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: newColorNameCtr,
-                          decoration: InputDecoration(
-                            isDense: true,
-                            hintText: 'Add color variant (e.g. Red, Blue)',
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          final cName = newColorNameCtr.text.trim();
-                          if (cName.isNotEmpty) {
-                            setSheetState(() {
-                              colorEntries.add(_ColorEntry(
-                                colorName: cName,
-                                quantityCtr: TextEditingController(text: '0'),
-                              ));
-                              newColorNameCtr.clear();
-                            });
-                          }
-                        },
-                        icon: const Icon(Icons.add, size: 16),
-                        label: const Text('Add Color'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ── Price inputs (Cost Price vs Sell Price) ──────────────
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: costPriceCtr,
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          onChanged: (_) => setSheetState(() {}),
-                          decoration: InputDecoration(
-                            labelText: 'Cost Price',
-                            hintText: 'Initial cost',
-                            prefixText: 'ETB ',
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: sellPriceCtr,
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          onChanged: (_) => setSheetState(() {}),
-                          decoration: InputDecoration(
-                            labelText: 'Sell Price',
-                            hintText: 'Selling price',
-                            prefixText: 'ETB ',
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ── Summary Box ──────────────────────────────────────────
-                  if (finalQty > 0 && (costPrice > 0 || sellPrice > 0))
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.gold.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: AppColors.gold.withValues(alpha: 0.3)),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Total Cost Value:',
-                                  style: TextStyle(fontSize: 12)),
-                              Text('${totalCost.toStringAsFixed(2)} ETB',
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Total Selling Value:',
-                                  style: TextStyle(fontSize: 12)),
-                              Text('${totalSales.toStringAsFixed(2)} ETB',
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.dark)),
-                            ],
-                          ),
-                          const Divider(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Est. Profit Margin:',
-                                  style: TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.bold)),
-                              Text(
-                                '${totalProfit.toStringAsFixed(2)} ETB',
-                                style: TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: totalProfit >= 0
-                                      ? Colors.green.shade700
-                                      : Colors.red,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 22),
-
-                  // ── Submit button ─────────────────────────────────────────
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        final name = nameCtr.text.trim();
-                        final img  = imageCtr.text.trim();
-
-                        if (name.isEmpty || finalQty <= 0 || sellPrice <= 0) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'Please enter material name, quantity > 0, and sell price > 0.'),
-                            ),
-                          );
-                          return;
-                        }
-
-                        final colorPayload = colorEntries
-                            .map((e) => {
-                                  'colorName': e.colorName,
-                                  'quantity': double.tryParse(
-                                          e.quantityCtr.text.trim()) ??
-                                      0,
-                                })
-                            .toList();
-
-                        Navigator.of(ctx).pop();
-                        try {
-                          await ref
-                              .read(materialNotifierProvider.notifier)
-                              .create(
-                                name:         name,
-                                quantity:     finalQty,
-                                unit:         selectedUnit,
-                                unitPrice:    sellPrice,
-                                initialPrice: costPrice > 0 ? costPrice : null,
-                                images:       img.isNotEmpty ? [img] : null,
-                                colors:       colorPayload.isNotEmpty
-                                    ? colorPayload
-                                    : null,
-                              );
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('✅ "$name" added to stock.'),
-                                backgroundColor: const Color(0xFF10B981),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      icon: const Icon(Icons.check_circle_outline),
-                      label: const Text(
-                        'Add to Stock',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.gold,
-                        foregroundColor: AppColors.dark,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+      builder: (_) => AddMaterialSheet(
+        onCreated: () {
+          ref.invalidate(materialNotifierProvider);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✅ Material added to stock'),
+                backgroundColor: Color(0xFF10B981),
               ),
-            ),
-          );
+            );
+          }
         },
+        onError: () {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to add material'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+        onValidationError: (msg) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(msg)),
+            );
+          }
+        },
+        materialRepo: ref.read(materialRepositoryProvider),
       ),
     );
   }

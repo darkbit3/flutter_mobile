@@ -635,7 +635,7 @@ class _CuttingCalculatorSheetState extends State<_CuttingCalculatorSheet> {
 
             // Material Dropdown
             DropdownButtonFormField<MaterialItem>(
-              value: _selectedMaterial,
+              initialValue: _selectedMaterial,
               isExpanded: true,
               decoration: InputDecoration(
                 labelText: 'Select Material (Optional)',

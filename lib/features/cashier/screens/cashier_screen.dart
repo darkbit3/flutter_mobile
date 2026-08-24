@@ -20,7 +20,10 @@ class CashierScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: _Header(total: state.cashiers.length),
+                  child: _Header(
+                    total: state.cashiers.length,
+                    active: state.cashiers.where((cashier) => cashier.isActive).length,
+                  ),
               ),
             ),
 
@@ -326,8 +329,9 @@ class CashierScreen extends ConsumerWidget {
 // ── Header ────────────────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
-  const _Header({required this.total});
+  const _Header({required this.total, required this.active});
   final int total;
+  final int active;
 
   @override
   Widget build(BuildContext context) {
@@ -377,12 +381,28 @@ class _Header extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '$total cashier${total == 1 ? '' : 's'} registered',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 13,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      '$total cashier${total == 1 ? '' : 's'} registered',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$active active',
+                        style: const TextStyle(color: Colors.white, fontSize: 11),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -412,114 +432,87 @@ class _CashierTable extends StatefulWidget {
 }
 
 class _CashierTableState extends State<_CashierTable> {
-  final Map<String, bool> _visiblePwd = {};
-
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(
-            const Color(0xFF10B981).withValues(alpha: 0.08),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 620) {
+          return Column(
+            children: [
+              for (var i = 0; i < widget.cashiers.length; i++) ...[
+                _CashierCard(
+                  cashier: widget.cashiers[i],
+                  onToggleStatus: () => widget.onToggleStatus(
+                      widget.cashiers[i].id, widget.cashiers[i].status),
+                  onEdit: () => widget.onEdit(widget.cashiers[i]),
+                  onResetPassword: () => widget.onResetPassword(widget.cashiers[i]),
+                ),
+                if (i < widget.cashiers.length - 1) const SizedBox(height: 10),
+              ],
+            ],
+          );
+        }
+
+        return Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: Colors.grey.shade200),
           ),
-          headingTextStyle: const TextStyle(
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF065F46),
-            fontSize: 13,
+          clipBehavior: Clip.antiAlias,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(
+                const Color(0xFF10B981).withValues(alpha: 0.08),
+              ),
+              headingTextStyle: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF065F46),
+                fontSize: 13,
+              ),
+              dataRowMinHeight: 56,
+              dataRowMaxHeight: 56,
+              columnSpacing: 20,
+              columns: const [
+                DataColumn(label: Text('#')),
+                DataColumn(label: Text('Name')),
+                DataColumn(label: Text('Phone')),
+                DataColumn(label: Text('Status')),
+                DataColumn(label: Text('Active')),
+                DataColumn(label: Text('Actions')),
+                DataColumn(label: Text('Created')),
+              ],
+              rows: [
+                for (var i = 0; i < widget.cashiers.length; i++)
+                  _buildRow(i, widget.cashiers[i]),
+              ],
+            ),
           ),
-          dataRowMinHeight: 56,
-          dataRowMaxHeight: 56,
-          columnSpacing: 20,
-          columns: const [
-            DataColumn(label: Text('#')),
-            DataColumn(label: Text('Name')),
-            DataColumn(label: Text('Phone')),
-            DataColumn(label: Text('Password')),
-            DataColumn(label: Text('Status')),
-            DataColumn(label: Text('Active')),
-            DataColumn(label: Text('Actions')),
-            DataColumn(label: Text('Created')),
-          ],
-          rows: [
-            for (var i = 0; i < widget.cashiers.length; i++)
-              _buildRow(i, widget.cashiers[i]),
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 
   DataRow _buildRow(int index, CashierModel c) {
-    final showPwd = _visiblePwd[c.id] ?? false;
-    final pwdText = (c.plainPassword != null && c.plainPassword!.isNotEmpty)
-        ? c.plainPassword!
-        : '(no password)';
-
     return DataRow(
       cells: [
-        DataCell(Text(
-          '${index + 1}',
-          style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-        )),
+        DataCell(Text('${index + 1}', style: TextStyle(color: Colors.grey.shade500, fontSize: 13))),
         DataCell(Row(
           children: [
             CircleAvatar(
               radius: 15,
-              backgroundColor:
-                  const Color(0xFF10B981).withValues(alpha: 0.12),
+              backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.12),
               child: Text(
                 c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
-                style: const TextStyle(
-                  color: Color(0xFF059669),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ),
             const SizedBox(width: 8),
-            Text(
-              c.name,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w600, fontSize: 14),
-            ),
+            Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
           ],
         )),
-        DataCell(Text(c.phone,
-            style: TextStyle(color: Colors.grey.shade700, fontSize: 13))),
-        DataCell(Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              showPwd ? pwdText : '••••••••',
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 13,
-                color: Colors.grey.shade800,
-                letterSpacing: showPwd ? 0 : 2,
-              ),
-            ),
-            const SizedBox(width: 4),
-            IconButton(
-              icon: Icon(
-                showPwd ? Icons.visibility_off : Icons.visibility,
-                size: 18,
-                color: Colors.grey.shade500,
-              ),
-              onPressed: () {
-                setState(() {
-                  _visiblePwd[c.id] = !showPwd;
-                });
-              },
-            ),
-          ],
-        )),
+        DataCell(Text(c.phone, style: TextStyle(color: Colors.grey.shade700, fontSize: 13))),
         DataCell(_StatusBadge(status: c.status)),
         DataCell(Switch(
           value: c.isActive,
@@ -542,11 +535,93 @@ class _CashierTableState extends State<_CashierTable> {
             ),
           ],
         )),
-        DataCell(Text(
-          _formatDate(c.createdAt),
-          style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-        )),
+        DataCell(Text(_formatDate(c.createdAt), style: TextStyle(color: Colors.grey.shade500, fontSize: 12))),
       ],
+    );
+  }
+
+  String _formatDate(String? iso) {
+    if (iso == null) return '—';
+    try {
+      final dt = DateTime.parse(iso);
+      return '${dt.day}/${dt.month}/${dt.year}';
+    } catch (_) {
+      return iso;
+    }
+  }
+}
+
+class _CashierCard extends StatelessWidget {
+  const _CashierCard({
+    required this.cashier,
+    required this.onToggleStatus,
+    required this.onEdit,
+    required this.onResetPassword,
+  });
+
+  final CashierModel cashier;
+  final VoidCallback onToggleStatus;
+  final VoidCallback onEdit;
+  final VoidCallback onResetPassword;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = cashier.isActive ? const Color(0xFF059669) : Colors.orange.shade700;
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: accent.withValues(alpha: 0.22)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 10, 12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 23,
+                  backgroundColor: accent.withValues(alpha: 0.12),
+                  child: Text(
+                    cashier.name.isNotEmpty ? cashier.name[0].toUpperCase() : '?',
+                    style: TextStyle(color: accent, fontSize: 18, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(cashier.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 4),
+                      Text(cashier.phone, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                    ],
+                  ),
+                ),
+                _StatusBadge(status: cashier.status),
+              ],
+            ),
+            const Divider(height: 22),
+            Row(
+              children: [
+                Text(
+                  'Joined ${_formatDate(cashier.createdAt)}',
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                ),
+                const Spacer(),
+                IconButton(tooltip: 'Edit', onPressed: onEdit, icon: const Icon(Icons.edit_rounded, color: Color(0xFF3B82F6), size: 20)),
+                IconButton(tooltip: 'Reset Password', onPressed: onResetPassword, icon: const Icon(Icons.lock_reset_rounded, color: Color(0xFFF59E0B), size: 20)),
+                Switch(
+                  value: cashier.isActive,
+                  activeThumbColor: const Color(0xFF10B981),
+                  onChanged: (_) => onToggleStatus(),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 

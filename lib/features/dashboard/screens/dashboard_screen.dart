@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../cashier/models/credit_model.dart';
@@ -132,6 +133,15 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 20),
+
+          // ── Role-aware command center ───────────────────────────────────
+          _OwnerCommandCenter(
+            isManufacturer: isManufacturer,
+            onStock: () => context.push('/stock'),
+            onCashier: () => context.push('/cashier'),
+            onCutter: isManufacturer ? () => context.push('/cutter') : null,
+          ),
+          const SizedBox(height: 24),
 
           // ── Low Stock Alert Banner (if any materials ≤ 20%) ──────────────
           materialsAsync.when(
@@ -432,6 +442,178 @@ class DashboardScreen extends ConsumerWidget {
       builder: (ctx) => Consumer(
         builder: (_, ref, __) =>
             _OwnerCreditDetailSheet(credit: credit, ref: ref),
+      ),
+    );
+  }
+}
+
+class _OwnerCommandCenter extends StatelessWidget {
+  const _OwnerCommandCenter({
+    required this.isManufacturer,
+    required this.onStock,
+    required this.onCashier,
+    this.onCutter,
+  });
+
+  final bool isManufacturer;
+  final VoidCallback onStock;
+  final VoidCallback onCashier;
+  final VoidCallback? onCutter;
+
+  @override
+  Widget build(BuildContext context) {
+    final roleColor = isManufacturer
+        ? const Color(0xFF0F766E)
+        : const Color(0xFF2563EB);
+    final roleSurface = isManufacturer
+        ? const Color(0xFFE6FFFB)
+        : const Color(0xFFEFF6FF);
+    final roleLabel = isManufacturer ? 'Manufacturer workspace' : 'Reseller workspace';
+    final roleMessage = isManufacturer
+        ? 'Keep production stock, cutters, and cashier activity moving.'
+        : 'Keep your inventory, sales team, and customer balances in view.';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: roleColor.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: roleSurface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  isManufacturer
+                      ? Icons.factory_rounded
+                      : Icons.storefront_rounded,
+                  color: roleColor,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      roleLabel,
+                      style: TextStyle(
+                        color: roleColor,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      roleMessage,
+                      style: const TextStyle(
+                        color: AppColors.textMid,
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _OwnerQuickAction(
+                  label: 'Inventory',
+                  icon: Icons.inventory_2_rounded,
+                  color: roleColor,
+                  onTap: onStock,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _OwnerQuickAction(
+                  label: 'Cashiers',
+                  icon: Icons.point_of_sale_rounded,
+                  color: const Color(0xFFB45309),
+                  onTap: onCashier,
+                ),
+              ),
+              if (onCutter != null) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _OwnerQuickAction(
+                    label: 'Cutters',
+                    icon: Icons.content_cut_rounded,
+                    color: const Color(0xFF7C3AED),
+                    onTap: onCutter!,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OwnerQuickAction extends StatelessWidget {
+  const _OwnerQuickAction({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 21),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

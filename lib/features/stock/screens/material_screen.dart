@@ -97,7 +97,7 @@ class _MaterialScreenState extends ConsumerState<MaterialScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _AddMaterialSheet(
+      builder: (ctx) => AddMaterialSheet(
         onCreated: () {
           ref.invalidate(materialsProvider);
           ref.read(toastServiceProvider).success('Material added successfully!');
@@ -949,8 +949,9 @@ class _MaterialDetailSheetState extends State<_MaterialDetailSheet> {
 // Add Material Sheet
 // ═══════════════════════════════════════════════════════════════════════════
 
-class _AddMaterialSheet extends StatefulWidget {
-  const _AddMaterialSheet({
+class AddMaterialSheet extends StatefulWidget {
+  const AddMaterialSheet({
+    super.key,
     required this.onCreated,
     required this.onError,
     required this.onValidationError,
@@ -963,10 +964,10 @@ class _AddMaterialSheet extends StatefulWidget {
   final MaterialRepository materialRepo;
 
   @override
-  State<_AddMaterialSheet> createState() => _AddMaterialSheetState();
+  State<AddMaterialSheet> createState() => _AddMaterialSheetState();
 }
 
-class _AddMaterialSheetState extends State<_AddMaterialSheet> {
+class _AddMaterialSheetState extends State<AddMaterialSheet> {
   final _nameCtr        = TextEditingController();
   final _costPriceCtr   = TextEditingController();
   final _sellPriceCtr   = TextEditingController();
@@ -1345,58 +1346,173 @@ class _AddMaterialSheetState extends State<_AddMaterialSheet> {
             ),
             const SizedBox(height: 8),
 
-            // Selected color rows
+            // Selected color rows with quantity inputs
             if (_colorEntries.isNotEmpty) ...[
-              ..._colorEntries.map((e) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
                   children: [
-                    Container(
-                      width: 32, height: 32,
-                      decoration: BoxDecoration(
-                        color: e.color,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.black.withValues(alpha: 0.15), width: 1.5),
-                        boxShadow: [BoxShadow(color: e.color.withValues(alpha: 0.35), blurRadius: 4, offset: const Offset(0, 2))],
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.palette_rounded, size: 15, color: AppColors.textMid),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${_colorEntries.length} color${_colorEntries.length == 1 ? '' : 's'} selected — enter quantity for each',
+                            style: const TextStyle(fontSize: 11.5, color: AppColors.textMid, fontWeight: FontWeight.w500),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: e.color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: e.color.withValues(alpha: 0.35)),
-                      ),
-                      child: Text(
-                        e.colorName,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 12.5,
-                          color: ThemeData.estimateBrightnessForColor(e.color) == Brightness.light
-                              ? AppColors.dark : AppColors.dark,
+                    const Divider(height: 1),
+                    // Each color row
+                    ..._colorEntries.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final e = entry.value;
+                      final isLast = i == _colorEntries.length - 1;
+                      return Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            child: Row(
+                              children: [
+                                // Color circle
+                                Container(
+                                  width: 36, height: 36,
+                                  decoration: BoxDecoration(
+                                    color: e.color,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.black.withValues(alpha: 0.12),
+                                      width: 1.2,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: e.color.withValues(alpha: 0.3),
+                                        blurRadius: 5,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                // Color name
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    e.colorName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13.5,
+                                      color: AppColors.dark,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Quantity input
+                                Expanded(
+                                  flex: 3,
+                                  child: TextField(
+                                    controller: e.quantityCtr,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    textAlign: TextAlign.center,
+                                    onChanged: (_) => setState(() {}),
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.dark,
+                                    ),
+                                    decoration: InputDecoration(
+                                      isDense: false,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                      labelText: _unitSuffix,
+                                      labelStyle: const TextStyle(fontSize: 12),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide(color: e.color.withValues(alpha: 0.5), width: 1.5),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide(color: e.color, width: 2),
+                                      ),
+                                      filled: true,
+                                      fillColor: e.color.withValues(alpha: 0.06),
+                                      // Stepper buttons
+                                      prefixIcon: GestureDetector(
+                                        onTap: () {
+                                          final v = double.tryParse(e.quantityCtr.text) ?? 0;
+                                          if (v > 0) {
+                                            e.quantityCtr.text = (v - 1).toStringAsFixed(v % 1 == 0 ? 0 : 1);
+                                            setState(() {});
+                                          }
+                                        },
+                                        child: Icon(Icons.remove_rounded, size: 18, color: e.color),
+                                      ),
+                                      suffixIcon: GestureDetector(
+                                        onTap: () {
+                                          final v = double.tryParse(e.quantityCtr.text) ?? 0;
+                                          e.quantityCtr.text = (v + 1).toStringAsFixed(v % 1 == 0 ? 0 : 1);
+                                          setState(() {});
+                                        },
+                                        child: Icon(Icons.add_rounded, size: 18, color: e.color),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                // Remove button
+                                GestureDetector(
+                                  onTap: () => setState(() {
+                                    e.quantityCtr.dispose();
+                                    _colorEntries.remove(e);
+                                  }),
+                                  child: Container(
+                                    width: 32, height: 32,
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withValues(alpha: 0.08),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.close_rounded, size: 16, color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (!isLast) const Divider(height: 1, indent: 12, endIndent: 12),
+                        ],
+                      );
+                    }),
+                    // Total row
+                    if (_colorEntries.isNotEmpty) ...[
+                      const Divider(height: 1),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Total: ${_totalQtyFromColors.toStringAsFixed(_totalQtyFromColors == _totalQtyFromColors.truncateToDouble() ? 0 : 2)} $_unitSuffix',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.gold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: e.quantityCtr,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(isDense: true, labelText: 'Qty ($_unitSuffix)'),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
-                      onPressed: () => setState(() {
-                        e.quantityCtr.dispose();
-                        _colorEntries.remove(e);
-                      }),
-                    ),
+                    ],
                   ],
                 ),
-              )),
-              const SizedBox(height: 4),
+              ),
+              const SizedBox(height: 10),
             ] else ...[
               TextField(
                 controller: _mainQtyCtr,
@@ -1411,109 +1527,91 @@ class _AddMaterialSheetState extends State<_AddMaterialSheet> {
               const SizedBox(height: 10),
             ],
 
-            // ── Add Color Variant (Text input + Swatches) ────────────────
+            // ── Add Color Variant ────────────────────────────────────────
             const Text('Add Color Variant',
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.dark)),
-            const SizedBox(height: 8),
-
-            // Quick text input for adding color
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _customColorCtr,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: 'Type color name (e.g. Burgundy, Navy #2)...',
-                      prefixIcon: const Icon(Icons.palette_outlined, size: 18),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    side: const BorderSide(color: AppColors.gold),
-                  ),
-                  onPressed: () {
-                    final cName = _customColorCtr.text.trim();
-                    if (cName.isNotEmpty) {
-                      final color = _colorForName(cName);
-                      setState(() {
-                        _colorEntries.add(_ColorEntry(
-                          colorName: cName,
-                          color: color,
-                          quantityCtr: TextEditingController(text: '0'),
-                        ));
-                        _customColorCtr.clear();
-                      });
-                    }
-                  },
-                  icon: const Icon(Icons.add_rounded, size: 16, color: AppColors.gold),
-                  label: const Text('Add', style: TextStyle(color: AppColors.dark, fontWeight: FontWeight.bold)),
-                ),
-              ],
+            const SizedBox(height: 4),
+            const Text(
+              'Tap a color to select · tap again to deselect',
+              style: TextStyle(fontSize: 11, color: AppColors.textLight),
             ),
             const SizedBox(height: 10),
 
-            // Color swatches (allows tapping multiple times to add multiple variants)
+            // Color swatches — single-select per swatch name
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 ..._kSwatches.map((swatch) {
-                  final count = _colorEntries.where((e) => e.colorName.toLowerCase() == swatch.name.toLowerCase()).length;
+                  final isSelected = _colorEntries.any(
+                    (e) => e.colorName.toLowerCase() == swatch.name.toLowerCase(),
+                  );
                   return GestureDetector(
-                    onTap: () => setState(() => _colorEntries.add(_ColorEntry(
-                          colorName: swatch.name,
-                          color: swatch.color,
-                          quantityCtr: TextEditingController(text: '0'),
-                        ))),
+                    onTap: () {
+                      setState(() {
+                        if (isSelected) {
+                          // Deselect: remove this color entry
+                          final idx = _colorEntries.indexWhere(
+                            (e) => e.colorName.toLowerCase() == swatch.name.toLowerCase(),
+                          );
+                          if (idx != -1) {
+                            _colorEntries[idx].quantityCtr.dispose();
+                            _colorEntries.removeAt(idx);
+                          }
+                        } else {
+                          // Select: add new entry
+                          _colorEntries.add(_ColorEntry(
+                            colorName: swatch.name,
+                            color: swatch.color,
+                            quantityCtr: TextEditingController(text: '0'),
+                          ));
+                        }
+                      });
+                    },
                     child: Tooltip(
-                      message: count > 0 ? '${swatch.name} ($count added)' : swatch.name,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Container(
-                            width: 36, height: 36,
-                            decoration: BoxDecoration(
-                              color: swatch.color,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: count > 0 ? AppColors.gold : Colors.black.withValues(alpha: 0.15),
-                                width: count > 0 ? 2.5 : 1,
-                              ),
-                              boxShadow: count > 0
-                                  ? [BoxShadow(color: AppColors.gold.withValues(alpha: 0.4), blurRadius: 4)]
-                                  : null,
-                            ),
+                      message: swatch.name,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: swatch.color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected ? AppColors.gold : Colors.black.withValues(alpha: 0.12),
+                            width: isSelected ? 3 : 1.2,
                           ),
-                          if (count > 0)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: AppColors.dark,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '$count',
-                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                        ],
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: swatch.color.withValues(alpha: 0.5),
+                                    blurRadius: 6,
+                                    spreadRadius: 1,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: isSelected
+                            ? Icon(
+                                Icons.check_rounded,
+                                size: 18,
+                                color: ThemeData.estimateBrightnessForColor(swatch.color) == Brightness.light
+                                    ? AppColors.dark
+                                    : Colors.white,
+                              )
+                            : null,
                       ),
                     ),
                   );
                 }),
-                // Rainbow custom color dialog button
+                // Rainbow "custom color" button
                 GestureDetector(
                   onTap: _openCustomColorDialog,
                   child: Tooltip(
                     message: 'Pick custom color',
                     child: ClipOval(
                       child: Container(
-                        width: 36, height: 36,
+                        width: 40, height: 40,
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: SweepGradient(colors: [
@@ -1529,7 +1627,39 @@ class _AddMaterialSheetState extends State<_AddMaterialSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
+
+            // Selected colors label strip (shows selected colors at a glance)
+            if (_colorEntries.isNotEmpty) ...[
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: _colorEntries.map((e) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: e.color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: e.color.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 10, height: 10,
+                        decoration: BoxDecoration(
+                          color: e.color,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.black.withValues(alpha: 0.1)),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(e.colorName, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.dark)),
+                    ],
+                  ),
+                )).toList(),
+              ),
+              const SizedBox(height: 12),
+            ],
 
 
             // Prices

@@ -1,7 +1,7 @@
 class ApiConstants {
   ApiConstants._();
 
-  static const String baseUrl = 'https://yonas-backend.onrender.com/api';
+  static const String baseUrl = 'https://backend-1-khts.onrender.com/api';
 
   // ── User auth endpoints ─────────────────────────────────────────────────
   static const String userLogin          = '/user-auth/login';

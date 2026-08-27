@@ -47,7 +47,7 @@ lib/
 
 2. **Set the backend URL** in `lib/core/constants/api_constants.dart`:
    ```dart
-   static const String baseUrl = 'https://yonas-backend.onrender.com/api';
+   static const String baseUrl = 'https://backend-1-khts.onrender.com/api';
 
    // Physical device → use your machine's local IP e.g.
    // static const String baseUrl = 'http://192.168.1.x:5000/api';

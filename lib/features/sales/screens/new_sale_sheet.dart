@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/notifications/notification_service.dart';
 import '../providers/sale_provider.dart';
 import '../../stock/models/material_model.dart';
 import '../../stock/providers/material_provider.dart';
 import '../../stock/data/material_repository.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../cashier/providers/credit_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -125,9 +127,11 @@ class _NewSaleSheetState extends ConsumerState<NewSaleSheet> {
       ref.invalidate(ownerCreditsProvider);
       ref.invalidate(ownerCreditStatsProvider);
 
-      // Fetch fresh stock to check low stock items
+      // Fetch fresh stock to check low stock items with custom threshold
       final freshStock = await ref.read(materialRepositoryProvider).fetchOwnerMaterials();
-      final lowStockList = freshStock.where((m) => m.isLowStock).toList();
+      final user = ref.read(authProvider).user;
+      final threshold = user?.alertThresholdPercentage ?? 20.0;
+      final lowStockList = freshStock.where((m) => m.isLowStockWithThreshold(threshold)).toList();
 
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -139,7 +143,17 @@ class _NewSaleSheetState extends ConsumerState<NewSaleSheet> {
         ),
       );
 
-      // If any items are at 20% or less, show low stock alert modal
+      // Trigger notifications for low stock items
+      for (final material in lowStockList) {
+        ref.read(notificationServiceProvider.notifier)
+            .addLowStockNotification(
+              materialId: material.id,
+              materialName: material.name,
+              remainingPercentage: material.remainingPercentage,
+            );
+      }
+
+      // If any items are at threshold or less, show low stock alert modal
       if (lowStockList.isNotEmpty && mounted) {
         showDialog(
           context: context,
@@ -157,9 +171,9 @@ class _NewSaleSheetState extends ConsumerState<NewSaleSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'The following material(s) are down to 20% or less of initial stock:',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF374151)),
+                Text(
+                  'The following material(s) are down to ${threshold.toStringAsFixed(0)}% or less of initial stock:',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF374151)),
                 ),
                 const SizedBox(height: 12),
                 ...lowStockList.map((m) => Container(

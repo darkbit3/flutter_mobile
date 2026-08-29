@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/theme/app_theme.dart';
 import '../core/toast/toast_overlay.dart';
+import '../core/widgets/notification_overlay.dart';
 import '../features/auth/providers/auth_provider.dart';
 
 class AppShell extends ConsumerWidget {
@@ -65,6 +66,7 @@ class AppShell extends ConsumerWidget {
         children: [
           child,
           const ToastOverlay(),
+          const NotificationOverlay(),
         ],
       ),
       bottomNavigationBar: _AppFooter(

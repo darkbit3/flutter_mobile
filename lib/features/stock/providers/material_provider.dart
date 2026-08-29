@@ -53,6 +53,33 @@ class MaterialNotifier extends AsyncNotifier<List<MaterialItem>> {
       (state.valueOrNull ?? []).where((m) => m.id != id).toList(),
     );
   }
+
+  Future<void> update({
+    required String id,
+    required String name,
+    required String unit,
+    required double unitPrice,
+    double? initialPrice,
+    List<String>? images,
+    List<Map<String, dynamic>>? colors,
+  }) async {
+    final repo = ref.read(materialRepositoryProvider);
+    final updated = await repo.updateMaterial(
+      id:           id,
+      name:         name,
+      unit:         unit,
+      unitPrice:    unitPrice,
+      initialPrice: initialPrice,
+      images:       images,
+      colors:       colors,
+    );
+    ref.invalidate(materialsProvider);
+    state = AsyncData(
+      (state.valueOrNull ?? [])
+          .map((m) => m.id == id ? updated : m)
+          .toList(),
+    );
+  }
 }
 
 final materialNotifierProvider =

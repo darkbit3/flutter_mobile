@@ -7,6 +7,7 @@ import '../features/auth/screens/reset_password_screen.dart';
 import '../features/auth/screens/change_password_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
+import '../features/profile/screens/settings_screen.dart';
 import '../features/stock/screens/stock_screen.dart';
 import '../features/cashier/screens/cashier_screen.dart';
 import '../features/cashier/screens/cashier_dashboard_screen.dart';
@@ -98,6 +99,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path:        '/profile',
             pageBuilder: (_, state) => _noAnim(state, const ProfileScreen()),
+          ),
+          GoRoute(
+            path:        '/settings',
+            pageBuilder: (_, state) => _noAnim(state, const SettingsScreen()),
           ),
           GoRoute(
             path:        '/change-password',

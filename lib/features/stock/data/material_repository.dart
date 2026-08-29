@@ -68,4 +68,28 @@ class MaterialRepository {
       throw ApiException.fromDio(e);
     }
   }
+
+  Future<MaterialItem> updateMaterial({
+    required String id,
+    required String name,
+    required String unit,
+    required double unitPrice,
+    double? initialPrice,
+    List<String>? images,
+    List<Map<String, dynamic>>? colors,
+  }) async {
+    try {
+      final res = await _dio.put('${ApiConstants.materials}/$id', data: {
+        'name': name,
+        'unit': unit,
+        'unitPrice': unitPrice,
+        if (initialPrice != null) 'initialPrice': initialPrice,
+        if (images != null) 'images': images,
+        if (colors != null) 'colors': colors,
+      });
+      return MaterialItem.fromJson(res.data['data'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
 }

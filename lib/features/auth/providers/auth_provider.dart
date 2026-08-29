@@ -155,3 +155,69 @@ final resetPasswordProvider = changePasswordProvider;
 
 // Alias state type
 typedef ResetPasswordState = ChangePasswordState;
+
+// ── Alert Threshold state ─────────────────────────────────────────────────────
+
+class AlertThresholdState {
+  const AlertThresholdState({
+    this.isLoading = false,
+    this.error,
+    this.success   = false,
+  });
+
+  final bool    isLoading;
+  final String? error;
+  final bool    success;
+
+  AlertThresholdState copyWith({
+    bool?   isLoading,
+    String? error,
+    bool?   success,
+  }) {
+    return AlertThresholdState(
+      isLoading: isLoading ?? this.isLoading,
+      error:     error,
+      success:   success   ?? this.success,
+    );
+  }
+}
+
+class AlertThresholdNotifier extends StateNotifier<AlertThresholdState> {
+  AlertThresholdNotifier(this._authRef, this._repo) : super(const AlertThresholdState());
+
+  final StateNotifierProviderRef _authRef;
+  final AuthRepository _repo;
+
+  Future<void> updateThreshold(double threshold) async {
+    state = state.copyWith(isLoading: true, error: null, success: false);
+    try {
+      await _repo.updateAlertThreshold(threshold);
+      // Update the user in auth state
+      final currentAuth = _authRef.read(authProvider);
+      if (currentAuth.user != null) {
+        final updatedUser = UserModel(
+          id: currentAuth.user!.id,
+          name: currentAuth.user!.name,
+          phone: currentAuth.user!.phone,
+          role: currentAuth.user!.role,
+          status: currentAuth.user!.status,
+          ownerId: currentAuth.user!.ownerId,
+          alertThresholdPercentage: threshold,
+        );
+        _authRef.read(authProvider.notifier).state =
+            currentAuth.copyWith(user: updatedUser);
+      }
+      state = state.copyWith(isLoading: false, success: true);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: _errorMessage(e),
+      );
+    }
+  }
+}
+
+final alertThresholdProvider =
+    StateNotifierProvider<AlertThresholdNotifier, AlertThresholdState>((ref) {
+  return AlertThresholdNotifier(ref, ref.watch(authRepositoryProvider));
+});

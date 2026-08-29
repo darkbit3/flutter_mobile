@@ -7,6 +7,7 @@ class ApiConstants {
   static const String userLogin          = '/user-auth/login';
   static const String userMe             = '/user-auth/me';
   static const String userChangePassword = '/user-auth/change-password';
+  static const String userAlertThreshold = '/user-auth/alert-threshold';
 
   // ── Cashier endpoints ────────────────────────────────────────────────────
   static const String cashiers = '/cashiers';

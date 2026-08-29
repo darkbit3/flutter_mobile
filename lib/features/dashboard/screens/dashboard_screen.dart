@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/notifications/notification_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../cashier/models/credit_model.dart';
 import '../../cashier/providers/credit_provider.dart';
@@ -143,13 +144,27 @@ class DashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
 
-          // ── Low Stock Alert Banner (if any materials ≤ 20%) ──────────────
+          // ── Low Stock Alert Banner (if any materials ≤ threshold%) ──────
           materialsAsync.when(
             loading: () => const SizedBox.shrink(),
             error:   (_, __) => const SizedBox.shrink(),
             data: (materials) {
-              final lowStockList = materials.where((m) => m.isLowStock).toList();
+              final threshold = user?.alertThresholdPercentage ?? 20.0;
+              final lowStockList = materials.where((m) => m.isLowStockWithThreshold(threshold)).toList();
               if (lowStockList.isEmpty) return const SizedBox.shrink();
+              
+              // Trigger notifications for low stock items
+              Future.microtask(() {
+                for (final material in lowStockList) {
+                  ref.read(notificationServiceProvider.notifier)
+                      .addLowStockNotification(
+                        materialId: material.id,
+                        materialName: material.name,
+                        remainingPercentage: material.remainingPercentage,
+                      );
+                }
+              });
+              
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -176,7 +191,7 @@ class DashboardScreen extends ConsumerWidget {
                                 color: Colors.red.shade700, size: 24),
                             const SizedBox(width: 8),
                             Text(
-                              'Low Stock Alert (≤ 20% Remaining)',
+                              'Low Stock Alert (≤ ${threshold.toStringAsFixed(0)}% Remaining)',
                               style: TextStyle(
                                 color: Colors.red.shade900,
                                 fontWeight: FontWeight.bold,

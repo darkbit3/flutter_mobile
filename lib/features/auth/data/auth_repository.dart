@@ -65,6 +65,18 @@ class AuthRepository {
     }
   }
 
+  /// Update alert threshold percentage for low stock (5-100).
+  Future<void> updateAlertThreshold(double threshold) async {
+    try {
+      await _dio.put(
+        ApiConstants.userAlertThreshold,
+        data: {'threshold': threshold},
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   /// Returns true if an access token is stored.
   Future<bool> hasToken() async {
     final token = await _storage.read(key: 'access_token');

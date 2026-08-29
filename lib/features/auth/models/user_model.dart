@@ -6,6 +6,7 @@ class UserModel {
     required this.role,
     required this.status,
     this.ownerId,
+    this.alertThresholdPercentage = 20,
   });
 
   final String  id;
@@ -14,6 +15,7 @@ class UserModel {
   final String  role;     // 'Manufacturer' | 'Reseller' | 'Cashier' | 'Cutter'
   final String  status;   // 'Active' | 'Inactive'
   final String? ownerId;  // set for Cashier / Cutter — points to their owner user
+  final double alertThresholdPercentage; // Low stock alert threshold (default 20%)
 
   bool get isReseller     => role == 'Reseller';
   bool get isManufacturer => role == 'Manufacturer';
@@ -31,6 +33,7 @@ class UserModel {
       role:    json['role']     as String,
       status:  json['status']   as String,
       ownerId: json['owner_id'] as String?,
+      alertThresholdPercentage: (json['alertThresholdPercentage'] as num?)?.toDouble() ?? 20,
     );
   }
 }

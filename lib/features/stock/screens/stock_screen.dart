@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_image_picker.dart';
+import '../../../core/notifications/notification_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../sales/data/sale_repository.dart';
 import '../../sales/models/sale_model.dart';
@@ -34,6 +35,31 @@ class _StockScreenState extends ConsumerState<StockScreen> {
       builder: (_) => AddMaterialSheet(
         onCreated: () {
           ref.invalidate(materialNotifierProvider);
+          
+          // Check for low stock after material is added
+          Future.delayed(const Duration(milliseconds: 500), () {
+            final user = ref.read(authProvider).user;
+            final materialsAsync = ref.read(materialNotifierProvider);
+            
+            materialsAsync.whenData((materials) {
+              if (materials.isNotEmpty && user != null) {
+                final threshold = user.alertThresholdPercentage;
+                
+                // Find the most recently added material (or any that just became low)
+                for (final material in materials) {
+                  if (material.isLowStockWithThreshold(threshold)) {
+                    ref.read(notificationServiceProvider.notifier)
+                        .addLowStockNotification(
+                          materialId: material.id,
+                          materialName: material.name,
+                          remainingPercentage: material.remainingPercentage,
+                        );
+                  }
+                }
+              }
+            });
+          });
+          
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(

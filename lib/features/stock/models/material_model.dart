@@ -71,6 +71,14 @@ class MaterialItem {
           ? (quantity / initialQuantity) <= 0.20
           : quantity <= 5;
 
+  /// Check if low stock with custom threshold (0-100)
+  bool isLowStockWithThreshold(double thresholdPercent) {
+    final threshold = (thresholdPercent / 100).clamp(0.0, 1.0);
+    return initialQuantity > 0
+        ? (quantity / initialQuantity) <= threshold
+        : quantity <= 5;
+  }
+
   double get remainingPercentage =>
       initialQuantity > 0
           ? ((quantity / initialQuantity) * 100).clamp(0.0, 100.0)

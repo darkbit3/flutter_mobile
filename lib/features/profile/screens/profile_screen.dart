@@ -125,6 +125,16 @@ class ProfileScreen extends ConsumerWidget {
           subtitle: 'Update your login password',
           onTap:    () => context.push('/change-password'),
         ),
+        const SizedBox(height: 12),
+        user != null && (user.isManufacturer || user.isReseller)
+            ? _ActionTile(
+                icon:     Icons.notifications_active_outlined,
+                color:    AppColors.warning,
+                title:    'Alert Settings',
+                subtitle: 'Configure low stock alert threshold',
+                onTap:    () => context.push('/settings'),
+              )
+            : const SizedBox.shrink(),
         const SizedBox(height: 24),
 
         // ── Logout ─────────────────────────────────────────────────────────

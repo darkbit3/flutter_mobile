@@ -62,6 +62,9 @@ class _CutterDashboardScreenState
                 ),
               ),
               data: (materials) {
+                final user = ref.watch(authProvider).user;
+                final threshold = user?.alertThresholdPercentage ?? 20.0;
+                
                 final filtered = materials.where((m) {
                   final matchesSearch = m.name
                       .toLowerCase()
@@ -73,7 +76,7 @@ class _CutterDashboardScreenState
                   return matchesSearch && matchesFilter;
                 }).toList();
 
-                final lowStockCount = materials.where((m) => m.isLowStock).length;
+                final lowStockCount = materials.where((m) => m.isLowStockWithThreshold(threshold)).length;
                 final totalQty = materials.fold<double>(
                     0, (sum, m) => sum + m.quantity);
 

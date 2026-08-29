@@ -9,6 +9,11 @@ class ApiConstants {
   static const String userChangePassword = '/user-auth/change-password';
   static const String userAlertThreshold = '/user-auth/alert-threshold';
 
+  // ── Chat endpoints ────────────────────────────────────────────────────────
+  static const String chatPeople       = '/chat/people';
+  static const String chatMessages     = '/chat/messages';
+  static const String chatSend         = '/chat/send';
+
   // ── Cashier endpoints ────────────────────────────────────────────────────
   static const String cashiers = '/cashiers';
 
@@ -20,6 +25,10 @@ class ApiConstants {
   // ── Materials / Stock endpoints ──────────────────────────────────────────
   static const String materials           = '/materials';
   static const String materialsOwnerStock = '/materials/owner-stock';
+
+  // ── Forgot password (OTP) ────────────────────────────────────────────────
+  static const String forgotPasswordCheckPhone = '/user-auth/forgot-password/check-phone';
+  static const String forgotPasswordVerifyOtp  = '/user-auth/forgot-password/verify-otp';
 
   // ── Credits endpoints ──────────────────────────────────────────
   static const String credits            = '/credits';

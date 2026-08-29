@@ -82,4 +82,33 @@ class AuthRepository {
     final token = await _storage.read(key: 'access_token');
     return token != null;
   }
+
+  /// Step 1 — check phone exists, get OTP issued (returns otp in dev mode).
+  Future<Map<String, dynamic>> forgotPasswordCheckPhone(String phone) async {
+    try {
+      final res = await _dio.post(
+        ApiConstants.forgotPasswordCheckPhone,
+        data: {'phone': phone},
+      );
+      return res.data['data'] as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  /// Step 2 — verify OTP and set new password.
+  Future<void> forgotPasswordVerifyOtp({
+    required String phone,
+    required String otp,
+    required String newPassword,
+  }) async {
+    try {
+      await _dio.post(
+        ApiConstants.forgotPasswordVerifyOtp,
+        data: {'phone': phone, 'otp': otp, 'newPassword': newPassword},
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
 }

@@ -1,9 +1,12 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/api_constants.dart';
+import '../../../core/network/dio_client.dart';
 import '../../../core/theme/app_theme.dart';
 
 class _ChatPerson {
-  final int id;
+  final String id;
   final String name;
   final String role;
   final String status;
@@ -18,6 +21,19 @@ class _ChatPerson {
     required this.avatar,
     required this.color,
   });
+
+  factory _ChatPerson.fromJson(Map<String, dynamic> json) {
+    final name = (json['name'] ?? 'Unknown').toString();
+    final initials = name.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).map((part) => part[0]).take(2).join().toUpperCase();
+    return _ChatPerson(
+      id: (json['id'] ?? '').toString(),
+      name: name,
+      role: (json['role'] ?? 'User').toString(),
+      status: (json['status'] ?? 'Active').toString(),
+      avatar: (json['avatar'] ?? initials).toString(),
+      color: const Color(0xFF7C3AED),
+    );
+  }
 }
 
 class _ChatMessage {
@@ -44,74 +60,11 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
-
-  final List<_ChatPerson> _people = const [
-    _ChatPerson(
-      id: 1,
-      name: 'Nadia Rahman',
-      role: 'Manufacturer',
-      status: 'Online',
-      avatar: 'NR',
-      color: AppColors.gold,
-    ),
-    _ChatPerson(
-      id: 2,
-      name: 'Samuel Bekele',
-      role: 'Cashier',
-      status: 'Away',
-      avatar: 'SB',
-      color: Color(0xFF7C5E4B),
-    ),
-    _ChatPerson(
-      id: 3,
-      name: 'Mihret Yisak',
-      role: 'Reseller',
-      status: 'Online',
-      avatar: 'MY',
-      color: Color(0xFF4D7C6A),
-    ),
-    _ChatPerson(
-      id: 4,
-      name: 'Selam Hailu',
-      role: 'Admin',
-      status: 'Offline',
-      avatar: 'SH',
-      color: Color(0xFF7B8FA1),
-    ),
-    _ChatPerson(
-      id: 5,
-      name: 'Abel Tadesse',
-      role: 'Support',
-      status: 'Online',
-      avatar: 'AT',
-      color: Color(0xFFA56A6A),
-    ),
-  ];
-
-  final Map<int, List<_ChatMessage>> _conversations = const {
-    1: [
-      _ChatMessage(id: '1', sender: 'them', text: 'Hi, can we confirm the leather order for tomorrow?', time: '09:12 AM'),
-      _ChatMessage(id: '2', sender: 'me', text: 'Yes, we have 4 rolls ready for dispatch.', time: '09:14 AM'),
-      _ChatMessage(id: '3', sender: 'them', text: 'Perfect, I will send the driver details shortly.', time: '09:15 AM'),
-    ],
-    2: [
-      _ChatMessage(id: '1', sender: 'them', text: 'The sales report has been uploaded.', time: '08:40 AM'),
-      _ChatMessage(id: '2', sender: 'me', text: 'Thanks, I will review it before lunch.', time: '08:41 AM'),
-    ],
-    3: [
-      _ChatMessage(id: '1', sender: 'them', text: 'We are running low on packaging materials.', time: 'Yesterday'),
-      _ChatMessage(id: '2', sender: 'me', text: 'I will check the stock level and update you.', time: 'Yesterday'),
-    ],
-    4: [
-      _ChatMessage(id: '1', sender: 'them', text: 'Please review the monthly inventory summary.', time: 'Mon'),
-    ],
-    5: [
-      _ChatMessage(id: '1', sender: 'them', text: 'The customer issue is now resolved.', time: 'Sun'),
-      _ChatMessage(id: '2', sender: 'me', text: 'Great, thanks for the quick follow-up.', time: 'Sun'),
-    ],
-  };
-
-  int _selectedPersonId = 1;
+  bool _loadingPeople = true;
+  bool _loadingMessages = false;
+  String? _selectedPersonId;
+  final List<_ChatPerson> _people = [];
+  final Map<String, List<_ChatMessage>> _conversations = {};
 
   List<_ChatPerson> get _filteredPeople {
     final query = _searchController.text.trim().toLowerCase();
@@ -122,38 +75,109 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }).toList();
   }
 
-  _ChatPerson get _selectedPerson {
-    final list = _filteredPeople;
-    for (final person in list) {
-      if (person.id == _selectedPersonId) return person;
-    }
-    return _people.firstWhere((person) => person.id == _selectedPersonId, orElse: () => _people.first);
+  _ChatPerson? get _selectedPerson {
+    if (_selectedPersonId == null) return _people.isEmpty ? null : _people.first;
+    return _people.firstWhere(
+      (person) => person.id == _selectedPersonId,
+      orElse: () => _people.isEmpty ? null : _people.first,
+    );
   }
 
-  List<_ChatMessage> get _selectedMessages => _conversations[_selectedPerson.id] ?? const [];
+  List<_ChatMessage> get _selectedMessages => _conversations[_selectedPersonId] ?? const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPeople();
+  }
+
+  Future<void> _loadPeople({String? search}) async {
+    try {
+      setState(() => _loadingPeople = true);
+      final dio = ref.read(dioProvider);
+      final res = await dio.get(
+        ApiConstants.chatPeople,
+        queryParameters: search == null || search.trim().isEmpty ? null : {'search': search.trim()},
+      );
+      final items = (res.data['data'] as List?) ?? const [];
+      final nextPeople = items.map((item) => _ChatPerson.fromJson(item as Map<String, dynamic>)).toList();
+      _people
+        ..clear()
+        ..addAll(nextPeople);
+      if (_selectedPersonId == null && nextPeople.isNotEmpty) {
+        _selectedPersonId = nextPeople.first.id;
+      }
+      if (_selectedPersonId != null && !nextPeople.any((person) => person.id == _selectedPersonId)) {
+        _selectedPersonId = nextPeople.isNotEmpty ? nextPeople.first.id : null;
+      }
+      if (_selectedPersonId != null) {
+        unawaited(_loadMessages(_selectedPersonId!));
+      }
+    } catch (_) {
+      _people.clear();
+      _selectedPersonId = null;
+    } finally {
+      if (mounted) setState(() => _loadingPeople = false);
+    }
+  }
+
+  Future<void> _loadMessages(String personId) async {
+    try {
+      setState(() => _loadingMessages = true);
+      final dio = ref.read(dioProvider);
+      final res = await dio.get('${ApiConstants.chatMessages}/$personId');
+      final items = (res.data['data'] as List?) ?? const [];
+      final messages = <_ChatMessage>[];
+      for (final item in items) {
+        final message = item as Map<String, dynamic>;
+        messages.add(_ChatMessage(
+          id: (message['id'] ?? DateTime.now().millisecondsSinceEpoch.toString()).toString(),
+          sender: (message['isMine'] == true) ? 'me' : 'them',
+          text: (message['message'] ?? '').toString(),
+          time: _formatDate(message['createdAt']),
+        ));
+      }
+      _conversations[personId] = messages;
+    } catch (_) {
+      _conversations[personId] = const [];
+    } finally {
+      if (mounted) setState(() => _loadingMessages = false);
+    }
+  }
+
+  Future<void> _sendMessage() async {
+    final message = _messageController.text.trim();
+    final person = _selectedPerson;
+    if (message.isEmpty || person == null) return;
+
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.post(
+        ApiConstants.chatSend,
+        data: {'receiverId': person.id, 'message': message},
+      );
+      _messageController.clear();
+      await _loadMessages(person.id);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to send message. Please try again.')),
+      );
+    }
+  }
+
+  String _formatDate(dynamic value) {
+    if (value == null || value.toString().isEmpty) return 'Now';
+    final date = DateTime.tryParse(value.toString());
+    if (date == null) return value.toString();
+    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
     _messageController.dispose();
     super.dispose();
-  }
-
-  void _sendMessage() {
-    final message = _messageController.text.trim();
-    if (message.isEmpty) return;
-
-    final current = [..._selectedMessages, _ChatMessage(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      sender: 'me',
-      text: message,
-      time: 'Now',
-    )];
-
-    _messageController.clear();
-    setState(() {
-      _conversations[_selectedPerson.id] = current;
-    });
   }
 
   @override
@@ -218,7 +242,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: TextField(
                         controller: _searchController,
-                        onChanged: (_) => setState(() {}),
+                        onChanged: (value) {
+                          _loadPeople(search: value);
+                        },
                         decoration: InputDecoration(
                           hintText: 'Search people',
                           prefixIcon: Icon(Icons.search, color: AppColors.textMid),
@@ -241,259 +267,262 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       ),
                     ),
                     Expanded(
-                      child: filteredPeople.isEmpty
-                          ? const Center(
-                              child: Text('No people found'),
-                            )
-                          : ListView.builder(
-                              itemCount: filteredPeople.length,
-                              itemBuilder: (context, index) {
-                                final person = filteredPeople[index];
-                                final isSelected = person.id == selectedPerson.id;
+                      child: _loadingPeople
+                          ? const Center(child: CircularProgressIndicator())
+                          : filteredPeople.isEmpty
+                              ? const Center(child: Text('No people found'))
+                              : ListView.builder(
+                                  itemCount: filteredPeople.length,
+                                  itemBuilder: (context, index) {
+                                    final person = filteredPeople[index];
+                                    final isSelected = person.id == selectedPerson?.id;
 
-                                return InkWell(
-                                  onTap: () {
-                                    setState(() => _selectedPersonId = person.id);
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: isSelected ? AppColors.gold.withValues(alpha: 0.12) : Colors.transparent,
-                                      border: Border(
-                                        bottom: BorderSide(color: AppColors.border),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 22,
-                                          backgroundColor: person.color,
-                                          child: Text(
-                                            person.avatar,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
+                                    return InkWell(
+                                      onTap: () {
+                                        setState(() => _selectedPersonId = person.id);
+                                        _loadMessages(person.id);
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? AppColors.gold.withValues(alpha: 0.12) : Colors.transparent,
+                                          border: Border(bottom: BorderSide(color: AppColors.border)),
                                         ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        child: Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 22,
+                                              backgroundColor: person.color,
+                                              child: Text(
+                                                person.avatar,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      person.name,
-                                                      style: TextStyle(
-                                                        fontWeight: FontWeight.bold,
-                                                        color: AppColors.dark,
+                                                  Row(
+                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                    children: [
+                                                      Expanded(
+                                                        child: Text(
+                                                          person.name,
+                                                          style: TextStyle(
+                                                            fontWeight: FontWeight.bold,
+                                                            color: AppColors.dark,
+                                                          ),
+                                                          overflow: TextOverflow.ellipsis,
+                                                        ),
                                                       ),
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
+                                                      Text(
+                                                        person.status,
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          color: person.status == 'Active' || person.status == 'Online'
+                                                              ? Colors.green.shade700
+                                                              : AppColors.textMid,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
+                                                  const SizedBox(height: 4),
                                                   Text(
-                                                    person.status,
+                                                    person.role,
                                                     style: TextStyle(
-                                                      fontSize: 11,
-                                                      color: person.status == 'Online'
-                                                          ? Colors.green.shade700
-                                                          : AppColors.textMid,
+                                                      fontSize: 12,
+                                                      color: AppColors.textMid,
                                                     ),
                                                   ),
                                                 ],
                                               ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                person.role,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: AppColors.textMid,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                                      ),
+                                    );
+                                  },
+                                ),
                     ),
                   ],
                 ),
               ),
 
               Expanded(
-                child: Container(
-                  color: Colors.white,
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                        decoration: BoxDecoration(
-                          border: Border(bottom: BorderSide(color: AppColors.border)),
-                          color: Colors.white,
-                        ),
-                        child: Row(
+                child: selectedPerson == null
+                    ? const Center(child: Text('Select a person to start chatting'))
+                    : Container(
+                        color: Colors.white,
+                        child: Column(
                           children: [
-                            CircleAvatar(
-                              radius: 22,
-                              backgroundColor: selectedPerson.color,
-                              child: Text(
-                                selectedPerson.avatar,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                              decoration: BoxDecoration(
+                                border: Border(bottom: BorderSide(color: AppColors.border)),
+                                color: Colors.white,
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Row(
                                 children: [
-                                  Text(
-                                    selectedPerson.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.dark,
-                                      fontSize: 18,
+                                  CircleAvatar(
+                                    radius: 22,
+                                    backgroundColor: selectedPerson.color,
+                                    child: Text(
+                                      selectedPerson.avatar,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    selectedPerson.role,
-                                    style: TextStyle(
-                                      color: AppColors.textMid,
-                                      fontSize: 12,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          selectedPerson.name,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.dark,
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          selectedPerson.role,
+                                          style: TextStyle(
+                                            color: AppColors.textMid,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: selectedPerson.status == 'Active' || selectedPerson.status == 'Online'
+                                          ? Colors.green.withValues(alpha: 0.12)
+                                          : AppColors.background,
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      selectedPerson.status,
+                                      style: TextStyle(
+                                        color: selectedPerson.status == 'Active' || selectedPerson.status == 'Online'
+                                            ? Colors.green.shade700
+                                            : AppColors.textMid,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: selectedPerson.status == 'Online'
-                                    ? Colors.green.withValues(alpha: 0.12)
-                                    : AppColors.background,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                selectedPerson.status,
-                                style: TextStyle(
-                                  color: selectedPerson.status == 'Online' ? Colors.green.shade700 : AppColors.textMid,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
 
-                      Expanded(
-                        child: ListView(
-                          padding: const EdgeInsets.all(16),
-                          children: [
-                            for (final message in _selectedMessages)
-                              Align(
-                                alignment: message.sender == 'me' ? Alignment.centerRight : Alignment.centerLeft,
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  constraints: const BoxConstraints(maxWidth: 320),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    color: message.sender == 'me'
-                                        ? AppColors.gold
-                                        : AppColors.background,
-                                    borderRadius: BorderRadius.only(
-                                      topLeft: const Radius.circular(16),
-                                      topRight: const Radius.circular(16),
-                                      bottomLeft: Radius.circular(message.sender == 'me' ? 16 : 4),
-                                      bottomRight: Radius.circular(message.sender == 'me' ? 4 : 16),
+                            Expanded(
+                              child: _loadingMessages
+                                  ? const Center(child: CircularProgressIndicator())
+                                  : ListView(
+                                      padding: const EdgeInsets.all(16),
+                                      children: [
+                                        for (final message in _selectedMessages)
+                                          Align(
+                                            alignment: message.sender == 'me' ? Alignment.centerRight : Alignment.centerLeft,
+                                            child: Container(
+                                              margin: const EdgeInsets.only(bottom: 12),
+                                              constraints: const BoxConstraints(maxWidth: 320),
+                                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                              decoration: BoxDecoration(
+                                                color: message.sender == 'me' ? AppColors.gold : AppColors.background,
+                                                borderRadius: BorderRadius.only(
+                                                  topLeft: const Radius.circular(16),
+                                                  topRight: const Radius.circular(16),
+                                                  bottomLeft: Radius.circular(message.sender == 'me' ? 16 : 4),
+                                                  bottomRight: Radius.circular(message.sender == 'me' ? 4 : 16),
+                                                ),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    message.text,
+                                                    style: TextStyle(
+                                                      color: message.sender == 'me' ? Colors.white : AppColors.dark,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  Text(
+                                                    message.time,
+                                                    style: TextStyle(
+                                                      color: message.sender == 'me' ? Colors.white70 : AppColors.textMid,
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                            ),
+
+                            Container(
+                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                              decoration: BoxDecoration(
+                                border: Border(top: BorderSide(color: AppColors.border)),
+                                color: Colors.white,
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _messageController,
+                                      decoration: InputDecoration(
+                                        hintText: 'Type a message...',
+                                        filled: true,
+                                        fillColor: AppColors.background,
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(14),
+                                          borderSide: BorderSide(color: AppColors.border),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(14),
+                                          borderSide: BorderSide(color: AppColors.border),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(14),
+                                          borderSide: BorderSide(color: AppColors.gold),
+                                        ),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                      ),
                                     ),
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        message.text,
-                                        style: TextStyle(
-                                          color: message.sender == 'me' ? Colors.white : AppColors.dark,
-                                          fontSize: 14,
-                                        ),
+                                  const SizedBox(width: 12),
+                                  ElevatedButton(
+                                    onPressed: _sendMessage,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.gold,
+                                      foregroundColor: AppColors.dark,
+                                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
                                       ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        message.time,
-                                        style: TextStyle(
-                                          color: message.sender == 'me' ? Colors.white70 : AppColors.textMid,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    ],
+                                    ),
+                                    child: const Text('Send'),
                                   ),
-                                ),
+                                ],
                               ),
-                          ],
-                        ),
-                      ),
-
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                        decoration: BoxDecoration(
-                          border: Border(top: BorderSide(color: AppColors.border)),
-                          color: Colors.white,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _messageController,
-                                decoration: InputDecoration(
-                                  hintText: 'Type a message...',
-                                  filled: true,
-                                  fillColor: AppColors.background,
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                    borderSide: BorderSide(color: AppColors.border),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                    borderSide: BorderSide(color: AppColors.border),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                    borderSide: BorderSide(color: AppColors.gold),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton(
-                              onPressed: _sendMessage,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.gold,
-                                foregroundColor: AppColors.dark,
-                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              child: const Text('Send'),
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
               ),
             ],
           );

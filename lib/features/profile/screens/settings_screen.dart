@@ -265,8 +265,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.info.withValues(alpha: 0.1),
-                      border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+                      color: Colors.blue.withValues(alpha: 0.08),
+                      border: Border.all(color: Colors.blue.withValues(alpha: 0.25)),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Column(
@@ -277,7 +277,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.info,
+                            color: Colors.blue,
                           ),
                         ),
                         SizedBox(height: 6),

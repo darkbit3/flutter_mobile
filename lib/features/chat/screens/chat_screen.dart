@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -76,11 +77,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   _ChatPerson? get _selectedPerson {
-    if (_selectedPersonId == null) return _people.isEmpty ? null : _people.first;
-    return _people.firstWhere(
-      (person) => person.id == _selectedPersonId,
-      orElse: () => _people.isEmpty ? null : _people.first,
-    );
+    if (_people.isEmpty) return null;
+    if (_selectedPersonId == null) return _people.first;
+    final found = _people.where((p) => p.id == _selectedPersonId);
+    return found.isNotEmpty ? found.first : _people.first;
   }
 
   List<_ChatMessage> get _selectedMessages => _conversations[_selectedPersonId] ?? const [];

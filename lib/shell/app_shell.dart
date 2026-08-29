@@ -37,7 +37,17 @@ class AppShell extends ConsumerWidget {
         path: '/cutter',
       ));
     }
-    list.add(const _NavDest(label: 'Profile', icon: Icons.person_rounded,         path: '/profile'));
+    list.add(const _NavDest(
+      label: 'History',
+      icon: Icons.history_rounded,
+      path: '/history',
+    ));
+    list.add(const _NavDest(
+      label: 'Chat',
+      icon: Icons.chat_bubble_outline,
+      path: '/chat',
+    ));
+    list.add(const _NavDest(label: 'Profile', icon: Icons.person_rounded, path: '/profile'));
     return list;
   }
 

@@ -54,7 +54,7 @@ class MaterialNotifier extends AsyncNotifier<List<MaterialItem>> {
     );
   }
 
-  Future<void> update({
+  Future<void> editMaterial({
     required String id,
     required String name,
     required String unit,

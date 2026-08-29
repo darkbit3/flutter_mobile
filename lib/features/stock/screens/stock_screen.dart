@@ -580,7 +580,7 @@ class _MaterialTile extends StatelessWidget {
                   ),
                 ),
 
-                // Total Value & Delete Button
+                // Total Value & Edit/Delete Buttons
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -597,10 +597,56 @@ class _MaterialTile extends StatelessWidget {
                       style: TextStyle(
                           fontSize: 10, color: AppColors.textLight),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded,
-                          size: 18, color: Colors.red),
-                      onPressed: () => _confirmDelete(context),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Edit button
+                        IconButton(
+                          icon: const Icon(Icons.edit_rounded,
+                              size: 18, color: AppColors.gold),
+                          tooltip: 'Edit',
+                          onPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => EditMaterialSheet(
+                                item: material,
+                                notifier: ref.read(materialNotifierProvider.notifier),
+                                onUpdated: () {
+                                  ref.invalidate(materialNotifierProvider);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('✅ Material updated'),
+                                      backgroundColor: Color(0xFF10B981),
+                                    ),
+                                  );
+                                },
+                                onError: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Failed to update material'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                },
+                                onValidationError: (msg) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(msg)),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                        // Delete button
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              size: 18, color: Colors.red),
+                          tooltip: 'Delete',
+                          onPressed: () => _confirmDelete(context),
+                        ),
+                      ],
                     ),
                   ],
                 ),

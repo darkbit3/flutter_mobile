@@ -300,13 +300,13 @@ class _MaterialScreenState extends ConsumerState<MaterialScreen> {
 // Material Card
 // ═══════════════════════════════════════════════════════════════════════════
 
-class _MaterialCard extends StatelessWidget {
+class _MaterialCard extends ConsumerWidget {
   const _MaterialCard({required this.item, required this.onTap});
   final MaterialItem item;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
@@ -383,6 +383,38 @@ class _MaterialCard extends StatelessWidget {
                               child: Text(
                                 item.name,
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (ctx) => EditMaterialSheet(
+                                    item: item,
+                                    notifier: ref.read(materialNotifierProvider.notifier),
+                                    onUpdated: () {
+                                      ref.invalidate(materialsProvider);
+                                      ref.read(toastServiceProvider).success('Material updated!');
+                                    },
+                                    onError: () {
+                                      ref.read(toastServiceProvider).error('Failed to update material');
+                                    },
+                                    onValidationError: (msg) {
+                                      ref.read(toastServiceProvider).warning(msg);
+                                    },
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(5),
+                                margin: const EdgeInsets.only(right: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.gold.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.edit_rounded, size: 15, color: AppColors.gold),
                               ),
                             ),
                             const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMid),
@@ -1978,7 +2010,7 @@ class _EditMaterialSheetState extends State<EditMaterialSheet> {
     Navigator.pop(context);
 
     try {
-      await widget.notifier.update(
+      await widget.notifier.editMaterial(
         id:           widget.item.id,
         name:         name,
         unit:         _unit,

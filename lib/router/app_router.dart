@@ -15,6 +15,8 @@ import '../features/cashier/screens/credit_list_screen.dart';
 import '../features/sales/screens/sales_screen.dart';
 import '../features/cutter/screens/cutter_screen.dart';
 import '../features/cutter/screens/cutter_dashboard_screen.dart';
+import '../features/chat/screens/chat_screen.dart';
+import '../features/history/screens/history_screen.dart';
 import '../shell/app_shell.dart';
 import '../shell/cashier_shell.dart';
 import '../shell/cutter_shell.dart';
@@ -103,6 +105,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path:        '/settings',
             pageBuilder: (_, state) => _noAnim(state, const SettingsScreen()),
+          ),
+          GoRoute(
+            path:        '/history',
+            pageBuilder: (_, state) => _noAnim(state, const HistoryScreen()),
+          ),
+          GoRoute(
+            path:        '/chat',
+            pageBuilder: (_, state) => _noAnim(state, const ChatScreen()),
           ),
           GoRoute(
             path:        '/change-password',

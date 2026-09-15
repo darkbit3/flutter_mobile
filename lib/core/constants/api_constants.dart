@@ -14,6 +14,7 @@ class ApiConstants {
   static const String chatPeople       = '/chat/people';
   static const String chatMessages     = '/chat/messages';
   static const String chatSend         = '/chat/send';
+  static const String chatGroups       = '/chat/groups';
 
   // ── Cashier endpoints ────────────────────────────────────────────────────
   static const String cashiers = '/cashiers';

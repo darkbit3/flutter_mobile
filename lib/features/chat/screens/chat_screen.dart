@@ -1,54 +1,57 @@
-import 'dart:async' show unawaited;
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/localization/language_provider.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/theme/app_theme.dart';
 
 class _ChatPerson {
+  const _ChatPerson({required this.id, required this.name, required this.role, required this.status, required this.avatar});
   final String id;
   final String name;
   final String role;
   final String status;
   final String avatar;
-  final Color color;
-
-  const _ChatPerson({
-    required this.id,
-    required this.name,
-    required this.role,
-    required this.status,
-    required this.avatar,
-    required this.color,
-  });
 
   factory _ChatPerson.fromJson(Map<String, dynamic> json) {
     final name = (json['name'] ?? 'Unknown').toString();
-    final initials = name.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).map((part) => part[0]).take(2).join().toUpperCase();
+    final avatar = name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).map((p) => p[0]).take(2).join().toUpperCase();
     return _ChatPerson(
       id: (json['id'] ?? '').toString(),
       name: name,
       role: (json['role'] ?? 'User').toString(),
       status: (json['status'] ?? 'Active').toString(),
-      avatar: (json['avatar'] ?? initials).toString(),
-      color: const Color(0xFF7C3AED),
+      avatar: avatar.isEmpty ? 'U' : avatar,
     );
   }
 }
 
+class _ChatGroup {
+  const _ChatGroup({required this.id, required this.name, required this.description, required this.memberCount});
+  final String id;
+  final String name;
+  final String description;
+  final int memberCount;
+
+  factory _ChatGroup.fromJson(Map<String, dynamic> json) => _ChatGroup(
+        id: (json['id'] ?? '').toString(),
+        name: (json['name'] ?? 'Group').toString(),
+        description: (json['description'] ?? '').toString(),
+        memberCount: int.tryParse('${json['memberCount'] ?? 0}') ?? 0,
+      );
+}
+
 class _ChatMessage {
+  const _ChatMessage({required this.id, required this.sender, required this.text, required this.time, this.senderRole});
   final String id;
   final String sender;
   final String text;
   final String time;
-
-  const _ChatMessage({
-    required this.id,
-    required this.sender,
-    required this.text,
-    required this.time,
-  });
+  final String? senderRole;
 }
+
+enum _ChatTab { people, groups }
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -58,474 +61,301 @@ class ChatScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _messageController = TextEditingController();
-  bool _loadingPeople = true;
-  bool _loadingMessages = false;
-  String? _selectedPersonId;
+  final _searchController = TextEditingController();
+  final _messageController = TextEditingController();
+  final _scrollController = ScrollController();
   final List<_ChatPerson> _people = [];
-  final Map<String, List<_ChatMessage>> _conversations = {};
+  final List<_ChatGroup> _groups = [];
+  final Map<String, List<_ChatMessage>> _messages = {};
+  _ChatTab _tab = _ChatTab.people;
+  String? _selectedPersonId;
+  String? _selectedGroupId;
+  bool _loadingList = true;
+  bool _loadingMessages = false;
+  bool _sending = false;
+  bool _showConversation = false;
+  Timer? _poller;
 
-  List<_ChatPerson> get _filteredPeople {
-    final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return _people;
-    return _people.where((person) {
-      final haystack = '${person.name} ${person.role}'.toLowerCase();
-      return haystack.contains(query);
-    }).toList();
-  }
-
-  _ChatPerson? get _selectedPerson {
-    if (_people.isEmpty) return null;
-    if (_selectedPersonId == null) return _people.first;
-    final found = _people.where((p) => p.id == _selectedPersonId);
-    return found.isNotEmpty ? found.first : _people.first;
-  }
-
-  List<_ChatMessage> get _selectedMessages => _conversations[_selectedPersonId] ?? const [];
+  _ChatPerson? get _person => _people.where((item) => item.id == _selectedPersonId).firstOrNull;
+  _ChatGroup? get _group => _groups.where((item) => item.id == _selectedGroupId).firstOrNull;
+  String? get _selectedId => _selectedGroupId ?? _selectedPersonId;
+  List<_ChatMessage> get _activeMessages => _messages[_selectedId] ?? const [];
 
   @override
   void initState() {
     super.initState();
     _loadPeople();
+    _loadGroups();
+    _poller = Timer.periodic(const Duration(seconds: 30), (_) {
+      _loadGroups();
+      if (_selectedGroupId != null) _loadGroupMessages(_selectedGroupId!);
+      if (_selectedPersonId != null) _loadPersonMessages(_selectedPersonId!);
+    });
   }
 
-  Future<void> _loadPeople({String? search}) async {
+  Future<void> _loadPeople() async {
     try {
-      setState(() => _loadingPeople = true);
-      final dio = ref.read(dioProvider);
-      final res = await dio.get(
-        ApiConstants.chatPeople,
-        queryParameters: search == null || search.trim().isEmpty ? null : {'search': search.trim()},
-      );
+      if (mounted) setState(() => _loadingList = true);
+      final res = await ref.read(dioProvider).get(ApiConstants.chatPeople);
       final items = (res.data['data'] as List?) ?? const [];
-      final nextPeople = items.map((item) => _ChatPerson.fromJson(item as Map<String, dynamic>)).toList();
       _people
         ..clear()
-        ..addAll(nextPeople);
-      if (_selectedPersonId == null && nextPeople.isNotEmpty) {
-        _selectedPersonId = nextPeople.first.id;
-      }
-      if (_selectedPersonId != null && !nextPeople.any((person) => person.id == _selectedPersonId)) {
-        _selectedPersonId = nextPeople.isNotEmpty ? nextPeople.first.id : null;
-      }
-      if (_selectedPersonId != null) {
-        unawaited(_loadMessages(_selectedPersonId!));
+        ..addAll(items.map((item) => _ChatPerson.fromJson(item as Map<String, dynamic>)));
+      if (_selectedPersonId == null && _selectedGroupId == null && _people.isNotEmpty) {
+        _selectedPersonId = _people.first.id;
       }
     } catch (_) {
       _people.clear();
-      _selectedPersonId = null;
     } finally {
-      if (mounted) setState(() => _loadingPeople = false);
+      if (mounted) setState(() => _loadingList = false);
     }
   }
 
-  Future<void> _loadMessages(String personId) async {
+  Future<void> _loadGroups() async {
     try {
-      setState(() => _loadingMessages = true);
-      final dio = ref.read(dioProvider);
-      final res = await dio.get('${ApiConstants.chatMessages}/$personId');
+      final res = await ref.read(dioProvider).get(ApiConstants.chatGroups);
       final items = (res.data['data'] as List?) ?? const [];
-      final messages = <_ChatMessage>[];
-      for (final item in items) {
-        final message = item as Map<String, dynamic>;
-        messages.add(_ChatMessage(
-          id: (message['id'] ?? DateTime.now().millisecondsSinceEpoch.toString()).toString(),
-          sender: (message['isMine'] == true) ? 'me' : 'them',
-          text: (message['message'] ?? '').toString(),
-          time: _formatDate(message['createdAt']),
-        ));
+      _groups
+        ..clear()
+        ..addAll(items.map((item) => _ChatGroup.fromJson(item as Map<String, dynamic>)));
+      if (_selectedGroupId != null && !_groups.any((group) => group.id == _selectedGroupId)) {
+        _selectedGroupId = null;
       }
-      _conversations[personId] = messages;
     } catch (_) {
-      _conversations[personId] = const [];
+      _groups.clear();
+    } finally {
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _loadPersonMessages(String personId) async {
+    try {
+      if (mounted) setState(() => _loadingMessages = true);
+      final res = await ref.read(dioProvider).get('${ApiConstants.chatMessages}/$personId');
+      _messages[personId] = _parseMessages(res.data['data'] as List?);
+    } catch (_) {
+      _messages[personId] = const [];
     } finally {
       if (mounted) setState(() => _loadingMessages = false);
     }
   }
 
-  Future<void> _sendMessage() async {
-    final message = _messageController.text.trim();
-    final person = _selectedPerson;
-    if (message.isEmpty || person == null) return;
-
+  Future<void> _loadGroupMessages(String groupId) async {
     try {
-      final dio = ref.read(dioProvider);
-      await dio.post(
-        ApiConstants.chatSend,
-        data: {'receiverId': person.id, 'message': message},
-      );
-      _messageController.clear();
-      await _loadMessages(person.id);
+      if (mounted) setState(() => _loadingMessages = true);
+      final res = await ref.read(dioProvider).get('${ApiConstants.chatGroups}/$groupId/messages');
+      _messages[groupId] = _parseMessages(res.data['data'] as List?);
     } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to send message. Please try again.')),
-      );
+      _messages[groupId] = const [];
+    } finally {
+      if (mounted) setState(() => _loadingMessages = false);
     }
   }
 
-  String _formatDate(dynamic value) {
-    if (value == null || value.toString().isEmpty) return 'Now';
-    final date = DateTime.tryParse(value.toString());
-    if (date == null) return value.toString();
+  List<_ChatMessage> _parseMessages(List? raw) => (raw ?? const []).map((item) {
+        final message = item as Map<String, dynamic>;
+        return _ChatMessage(
+          id: (message['id'] ?? DateTime.now().microsecondsSinceEpoch).toString(),
+          sender: message['isMine'] == true ? 'me' : 'them',
+          text: (message['message'] ?? '').toString(),
+          time: _formatTime(message['createdAt']),
+          senderRole: message['senderRole']?.toString(),
+        );
+      }).toList();
+
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    final person = _person;
+    final group = _group;
+    if (text.isEmpty || _sending || (person == null && group == null)) return;
+    final id = group?.id ?? person!.id;
+    _messageController.clear();
+    setState(() {
+      _sending = true;
+      _messages[id] = [..._activeMessages, _ChatMessage(id: 'temp-${DateTime.now().microsecondsSinceEpoch}', sender: 'me', text: text, time: _formatTime(DateTime.now().toIso8601String()))];
+    });
+    try {
+      if (group != null) {
+        await ref.read(dioProvider).post('${ApiConstants.chatGroups}/${group.id}/send', data: {'message': text});
+        await _loadGroupMessages(group.id);
+      } else {
+        await ref.read(dioProvider).post(ApiConstants.chatSend, data: {'receiverId': person!.id, 'message': text});
+        await _loadPersonMessages(person.id);
+      }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Message could not be sent.')));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  String _formatTime(dynamic value) {
+    final date = DateTime.tryParse('${value ?? ''}');
+    if (date == null) return 'Now';
     return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  void _selectPerson(String id) {
+    setState(() {
+      _selectedPersonId = id;
+      _selectedGroupId = null;
+      _showConversation = true;
+    });
+    unawaited(_loadPersonMessages(id));
+  }
+
+  void _selectGroup(String id) {
+    setState(() {
+      _selectedGroupId = id;
+      _selectedPersonId = null;
+      _showConversation = true;
+    });
+    unawaited(_loadGroupMessages(id));
   }
 
   @override
   void dispose() {
+    _poller?.cancel();
     _searchController.dispose();
     _messageController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final selectedPerson = _selectedPerson;
-    final filteredPeople = _filteredPeople;
-
+    final text = AppText(ref.watch(languageProvider));
+    final isDesktop = MediaQuery.sizeOf(context).width >= 850;
+    final selectedName = _group?.name ?? _person?.name;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        title: Text(text.chat),
         backgroundColor: AppColors.dark,
         foregroundColor: AppColors.cream,
-        elevation: 0,
-        title: const Text('Chat'),
-        centerTitle: false,
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final useDesktop = constraints.maxWidth >= 900;
+      body: Padding(
+        padding: const EdgeInsets.all(12),
+        child: isDesktop
+            ? Row(children: [SizedBox(width: 330, child: _listPanel(text)), const SizedBox(width: 12), Expanded(child: _conversationPanel(text, selectedName))])
+            : (_showConversation ? _conversationPanel(text, selectedName) : _listPanel(text)),
+      ),
+    );
+  }
 
-          return Row(
-            children: [
-              Container(
-                width: useDesktop ? 320 : double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  border: Border(
-                    right: useDesktop ? BorderSide(color: AppColors.border) : BorderSide.none,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'People',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.dark,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.gold.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.search,
-                              color: AppColors.gold,
-                              size: 20,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (value) {
-                          _loadPeople(search: value);
-                        },
-                        decoration: InputDecoration(
-                          hintText: 'Search people',
-                          prefixIcon: Icon(Icons.search, color: AppColors.textMid),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: AppColors.border),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: AppColors.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: AppColors.gold),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+  Widget _listPanel(AppText text) {
+    final query = _searchController.text.toLowerCase();
+    final people = _people.where((p) => '${p.name} ${p.role}'.toLowerCase().contains(query)).toList();
+    final groups = _groups.where((g) => '${g.name} ${g.description}'.toLowerCase().contains(query)).toList();
+    return Container(
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.border)),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+            child: Row(children: [Expanded(child: Text(text.chat, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.dark))), IconButton(onPressed: _loadGroups, icon: const Icon(Icons.refresh_rounded, color: AppColors.gold))]),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(hintText: text.isAmharic ? 'ፈልግ' : 'Search people or groups', prefixIcon: const Icon(Icons.search), suffixIcon: _searchController.text.isEmpty ? null : IconButton(onPressed: () { _searchController.clear(); setState(() {}); }, icon: const Icon(Icons.clear))),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SegmentedButton<_ChatTab>(
+              segments: [ButtonSegment(value: _ChatTab.people, label: Text(text.isAmharic ? 'ሰዎች' : 'People'), icon: const Icon(Icons.person_outline)), ButtonSegment(value: _ChatTab.groups, label: Text(text.isAmharic ? 'ቡድኖች' : 'Groups'), icon: const Icon(Icons.groups_outlined))],
+              selected: {_tab},
+              onSelectionChanged: (value) => setState(() => _tab = value.first),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _loadingList
+                ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+                : _tab == _ChatTab.people
+                    ? (people.isEmpty ? _empty(text.isAmharic ? 'ሰው አልተገኘም' : 'No people found') : ListView(children: people.map(_personTile).toList()))
+                    : (groups.isEmpty ? _empty(text.isAmharic ? 'የተመዘገበ ቡድን የለም' : 'No available groups') : ListView(children: groups.map(_groupTile).toList())),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _personTile(_ChatPerson person) => ListTile(
+        selected: person.id == _selectedPersonId,
+        selectedTileColor: AppColors.goldLight,
+        leading: CircleAvatar(backgroundColor: AppColors.dark, child: Text(person.avatar, style: const TextStyle(color: Colors.white, fontSize: 12))),
+        title: Text(person.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(person.role),
+        trailing: Icon(person.status == 'Active' ? Icons.circle : Icons.circle_outlined, size: 10, color: person.status == 'Active' ? AppColors.success : AppColors.textLight),
+        onTap: () => _selectPerson(person.id),
+      );
+
+  Widget _groupTile(_ChatGroup group) => ListTile(
+        selected: group.id == _selectedGroupId,
+        selectedTileColor: const Color(0xFFECFDF5),
+        leading: CircleAvatar(backgroundColor: AppColors.success, child: const Icon(Icons.groups_rounded, color: Colors.white)),
+        title: Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(group.description.isEmpty ? '${group.memberCount} members' : group.description, maxLines: 1, overflow: TextOverflow.ellipsis),
+        trailing: Text('${group.memberCount}', style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
+        onTap: () => _selectGroup(group.id),
+      );
+
+  Widget _empty(String label) => Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(label, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textMid))));
+
+  Widget _conversationPanel(AppText text, String? name) {
+    final group = _group;
+    final person = _person;
+    return Container(
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.border)),
+      child: Column(
+        children: [
+          if (!MediaQuery.sizeOf(context).width.isFinite || MediaQuery.sizeOf(context).width < 850)
+            Align(alignment: Alignment.centerLeft, child: IconButton(onPressed: () => setState(() => _showConversation = false), icon: const Icon(Icons.arrow_back))),
+          if (name == null)
+            Expanded(child: _empty(text.isAmharic ? 'ውይይት ለመጀመር ቡድን ወይም ሰው ይምረጡ' : 'Select a person or group to start chatting'))
+          else ...[
+            ListTile(
+              leading: CircleAvatar(backgroundColor: group != null ? AppColors.success : AppColors.dark, child: Icon(group != null ? Icons.groups_rounded : Icons.person, color: Colors.white)),
+              title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text(group != null ? '${group.memberCount} members' : person?.role ?? ''),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: _loadingMessages
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+                  : _activeMessages.isEmpty
+                      ? _empty(text.isAmharic ? 'ውይይቱን ይጀምሩ' : 'Start the conversation')
+                      : ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _activeMessages.length,
+                          itemBuilder: (_, index) {
+                            final message = _activeMessages[index];
+                            final mine = message.sender == 'me';
+                            return Align(
+                              alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+                              child: Container(
+                                constraints: const BoxConstraints(maxWidth: 340),
+                                margin: const EdgeInsets.only(bottom: 10),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(color: mine ? AppColors.dark : AppColors.background, borderRadius: BorderRadius.circular(16)),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [if (group != null && !mine) Text(message.senderRole ?? 'Member', style: const TextStyle(fontSize: 10, color: AppColors.textMid)), Text(message.text, style: TextStyle(color: mine ? Colors.white : AppColors.dark)), const SizedBox(height: 4), Text(message.time, style: TextStyle(fontSize: 10, color: mine ? Colors.white70 : AppColors.textMid))]),
+                              ),
+                            );
+                          },
                         ),
-                      ),
-                    ),
-                    Expanded(
-                      child: _loadingPeople
-                          ? const Center(child: CircularProgressIndicator())
-                          : filteredPeople.isEmpty
-                              ? const Center(child: Text('No people found'))
-                              : ListView.builder(
-                                  itemCount: filteredPeople.length,
-                                  itemBuilder: (context, index) {
-                                    final person = filteredPeople[index];
-                                    final isSelected = person.id == selectedPerson?.id;
-
-                                    return InkWell(
-                                      onTap: () {
-                                        setState(() => _selectedPersonId = person.id);
-                                        _loadMessages(person.id);
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: isSelected ? AppColors.gold.withValues(alpha: 0.12) : Colors.transparent,
-                                          border: Border(bottom: BorderSide(color: AppColors.border)),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            CircleAvatar(
-                                              radius: 22,
-                                              backgroundColor: person.color,
-                                              child: Text(
-                                                person.avatar,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Row(
-                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                    children: [
-                                                      Expanded(
-                                                        child: Text(
-                                                          person.name,
-                                                          style: TextStyle(
-                                                            fontWeight: FontWeight.bold,
-                                                            color: AppColors.dark,
-                                                          ),
-                                                          overflow: TextOverflow.ellipsis,
-                                                        ),
-                                                      ),
-                                                      Text(
-                                                        person.status,
-                                                        style: TextStyle(
-                                                          fontSize: 11,
-                                                          color: person.status == 'Active' || person.status == 'Online'
-                                                              ? Colors.green.shade700
-                                                              : AppColors.textMid,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    person.role,
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: AppColors.textMid,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                    ),
-                  ],
-                ),
-              ),
-
-              Expanded(
-                child: selectedPerson == null
-                    ? const Center(child: Text('Select a person to start chatting'))
-                    : Container(
-                        color: Colors.white,
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                              decoration: BoxDecoration(
-                                border: Border(bottom: BorderSide(color: AppColors.border)),
-                                color: Colors.white,
-                              ),
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 22,
-                                    backgroundColor: selectedPerson.color,
-                                    child: Text(
-                                      selectedPerson.avatar,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          selectedPerson.name,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: AppColors.dark,
-                                            fontSize: 18,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          selectedPerson.role,
-                                          style: TextStyle(
-                                            color: AppColors.textMid,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: selectedPerson.status == 'Active' || selectedPerson.status == 'Online'
-                                          ? Colors.green.withValues(alpha: 0.12)
-                                          : AppColors.background,
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                    child: Text(
-                                      selectedPerson.status,
-                                      style: TextStyle(
-                                        color: selectedPerson.status == 'Active' || selectedPerson.status == 'Online'
-                                            ? Colors.green.shade700
-                                            : AppColors.textMid,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            Expanded(
-                              child: _loadingMessages
-                                  ? const Center(child: CircularProgressIndicator())
-                                  : ListView(
-                                      padding: const EdgeInsets.all(16),
-                                      children: [
-                                        for (final message in _selectedMessages)
-                                          Align(
-                                            alignment: message.sender == 'me' ? Alignment.centerRight : Alignment.centerLeft,
-                                            child: Container(
-                                              margin: const EdgeInsets.only(bottom: 12),
-                                              constraints: const BoxConstraints(maxWidth: 320),
-                                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                              decoration: BoxDecoration(
-                                                color: message.sender == 'me' ? AppColors.gold : AppColors.background,
-                                                borderRadius: BorderRadius.only(
-                                                  topLeft: const Radius.circular(16),
-                                                  topRight: const Radius.circular(16),
-                                                  bottomLeft: Radius.circular(message.sender == 'me' ? 16 : 4),
-                                                  bottomRight: Radius.circular(message.sender == 'me' ? 4 : 16),
-                                                ),
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    message.text,
-                                                    style: TextStyle(
-                                                      color: message.sender == 'me' ? Colors.white : AppColors.dark,
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 6),
-                                                  Text(
-                                                    message.time,
-                                                    style: TextStyle(
-                                                      color: message.sender == 'me' ? Colors.white70 : AppColors.textMid,
-                                                      fontSize: 10,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                            ),
-
-                            Container(
-                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                              decoration: BoxDecoration(
-                                border: Border(top: BorderSide(color: AppColors.border)),
-                                color: Colors.white,
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _messageController,
-                                      decoration: InputDecoration(
-                                        hintText: 'Type a message...',
-                                        filled: true,
-                                        fillColor: AppColors.background,
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(14),
-                                          borderSide: BorderSide(color: AppColors.border),
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(14),
-                                          borderSide: BorderSide(color: AppColors.border),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(14),
-                                          borderSide: BorderSide(color: AppColors.gold),
-                                        ),
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  ElevatedButton(
-                                    onPressed: _sendMessage,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.gold,
-                                      foregroundColor: AppColors.dark,
-                                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                    ),
-                                    child: const Text('Send'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-              ),
-            ],
-          );
-        },
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: Row(children: [Expanded(child: TextField(controller: _messageController, textInputAction: TextInputAction.newline, minLines: 1, maxLines: 4, decoration: InputDecoration(hintText: text.isAmharic ? 'መልዕክት ይጻፉ...' : 'Type a message...'))), const SizedBox(width: 8), IconButton.filled(onPressed: _sending ? null : _sendMessage, icon: _sending ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_rounded))]),
+            ),
+          ],
+        ],
       ),
     );
   }

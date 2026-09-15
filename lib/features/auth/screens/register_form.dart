@@ -4,8 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/register_provider.dart';
+import '../providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../constants/lang_constants.dart';
+import '../utils/phone_utils.dart';
 
 class RegisterForm extends ConsumerStatefulWidget {
   const RegisterForm({Key? key, required this.lang}) : super(key: key);
@@ -35,26 +37,20 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
     super.dispose();
   }
 
-  String _normalizePhone(String raw) {
-    final digits = raw.replaceAll(RegExp(r'\D+'), '');
-    if (digits.startsWith('251')) return digits;
-    return '251$digits';
-  }
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final notifier = ref.read(registerProvider.notifier);
     await notifier.register(
       name: _nameCtrl.text.trim(),
       email: _emailCtrl.text.trim(),
-      phone: _normalizePhone(_phoneCtrl.text),
+      phone: normalizeEthiopianPhone(_phoneCtrl.text),
       password: _passCtrl.text,
     );
     final state = ref.read(registerProvider);
-    if (state.success) {
-      // Navigate to OTP screen
+    if (state.success && state.user != null) {
+      ref.read(authProvider.notifier).setAuthenticated(state.user!);
       if (mounted) {
-        context.go('/register-otp');
+        context.go('/dashboard');
       }
     }
   }
@@ -119,9 +115,9 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
               ),
               validator: (v) {
                 if (v == null || v.isEmpty) return isEn ? 'Phone required' : 'ስልክ ያስፈልጋል';
-                final normalized = _normalizePhone(v);
+                final normalized = normalizeEthiopianPhone(v);
                 if (normalized.length != 12) return isEn ? 'Phone must be 12 digits starting with 251' : 'ስልክ 12 ቁጥር መሆን አለበት እና 251 ከጀመረ';
-                if (!RegExp(r'^251[97]\d{8}$').hasMatch(normalized)) return isEn ? 'Must start with 251 and then 9 digits starting with 9 or 7' : '251 እና 9 ቁጥሮች መሆን አለበት እና 9 ወይም 7 ከጀመረ';
+                if (!isValidEthiopianPhone(normalized)) return isEn ? 'Must start with 251 and then 9 digits starting with 9 or 7' : '251 እና 9 ቁጥሮች መሆን አለበት እና 9 ወይም 7 ከጀመረ';
                 return null;
               },
             ),

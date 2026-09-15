@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import 'register_form.dart';
+import '../utils/phone_utils.dart';
 import '../providers/auth_provider.dart';
 import '../constants/lang_constants.dart';
 
@@ -37,20 +38,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     await ref
         .read(authProvider.notifier)
-        .login(_phoneCtr.text.trim(), _passCtr.text);
+      .login(normalizeEthiopianPhone(_phoneCtr.text), _passCtr.text);
   }
 
   // â”€â”€ Strings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   String get _title       => _lang == Lang.en ? 'Shmeta'                      : '\u{123D}\u{121C}\u{1273}';
   String get _subtitle    => _lang == Lang.en ? 'Sign in to your account'     : '\u{12C8}\u{12F0} \u{1215}\u{1233}\u{1265}\u{1215} \u{130D}\u{1263}';
   String get _phoneLabel  => _lang == Lang.en ? 'Phone Number'                : '\u{1235}\u{120D}\u{12AD} \u{1241}\u{1305}\u{122D}';
-  String get _phoneHint   => _lang == Lang.en ? '09xxxxxxxx or 07xxxxxxxx'    : '09xxxxxxxx \u{12C8}\u{12ED}\u{121D} 07xxxxxxxx';
+  String get _phoneHint   => _lang == Lang.en ? '9xxxxxxxx or 7xxxxxxxx'       : '9xxxxxxxx \u{12C8}\u{12ED}\u{121D} 7xxxxxxxx';
   String get _passLabel   => _lang == Lang.en ? 'Password'                    : '\u{12E8}\u{121A}\u{1235}\u{1325}\u{122D} \u{134D}\u{1208}\u{1303}';
   String get _forgotText  => _lang == Lang.en ? 'Forgot Password?'            : '\u{12E8}\u{121A}\u{1235}\u{1325}\u{122D} \u{134D}\u{1208}\u{1303} \u{1228}\u{1231}?';
   String get _signInText  => _lang == Lang.en ? 'Sign In'                     : '\u{130D}\u{1263}';
   String get _phoneReq    => _lang == Lang.en ? 'Phone number is required'    : '\u{1235}\u{120D}\u{12AD} \u{1241}\u{1305}\u{122D} \u{12EB}\u{1235}\u{1348}\u{120D}\u{130B}\u{120D}';
-  String get _phone10     => _lang == Lang.en ? 'Phone must be exactly 10 digits' : '\u{1235}\u{120D}\u{12AD} \u{1241}\u{1305}\u{122D} \u{1260}\u{1275}\u{12AD}\u{12AD}\u{120D} 10 \u{12A0}\u{1203}\u{12DE}\u{127D} \u{1218}\u{1206}\u{1295} \u{12A0}\u{1208}\u{1260}\u{1275}';
-  String get _phone09     => _lang == Lang.en ? 'Must start with 09 or 07'   : '09 \u{12C8}\u{12ED}\u{121D} 07 \u{121B}\u{1230}\u{1300}\u{1218}\u{122D} \u{12A0}\u{1208}\u{1260}\u{1275}';
+  String get _phone10     => _lang == Lang.en ? 'Phone must have 9 digits after 251' : '\u{1235}\u{120D}\u{12AD} \u{1241}\u{1305}\u{122D} 251 \u{12A8}\u{12CB}\u{1208} 9 \u{12A0}\u{1203}\u{12DE}\u{127D} \u{1218}\u{1206}\u{1295} \u{12A0}\u{1208}\u{1260}\u{1265}';
+  String get _phone09     => _lang == Lang.en ? 'Must start with 9 or 7'   : '9 \u{12C8}\u{12ED}\u{121D} 7 \u{121B}\u{1230}\u{1300}\u{1218}\u{122D} \u{12A0}\u{1208}\u{1260}\u{1275}';
   String get _passReq     => _lang == Lang.en ? 'Password is required'        : '\u{12E8}\u{121A}\u{1235}\u{1325}\u{122D} \u{134D}\u{1208}\u{1303} \u{12EB}\u{1235}\u{1348}\u{120D}\u{130B}\u{120D}';
   String get _passMin     => _lang == Lang.en ? 'Minimum 6 characters'        : '\u{1262}\u{12EB}\u{1295}\u{1235} 6 \u{1241}\u{121D}\u{134A}\u{12CE}\u{127D}';
 
@@ -347,18 +348,19 @@ class _LoginCard extends StatelessWidget {
               keyboardType: TextInputType.phone,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(10),
+                LengthLimitingTextInputFormatter(9),
               ],
               decoration: InputDecoration(
                 labelText:   phoneLabel,
                 hintText:    phoneHint,
+                prefixText:  '251 ',
                 prefixIcon:  const Icon(Icons.phone_outlined),
                 counterText: '',
               ),
               validator: (v) {
                 if (v == null || v.isEmpty) return phoneReq;
-                if (v.length != 10)         return phone10;
-                if (!RegExp(r'^0[97]\d{8}$').hasMatch(v)) return phone09;
+                if (normalizeEthiopianPhone(v).length != 12) return phone10;
+                if (!isValidEthiopianPhone(v)) return phone09;
                 return null;
               },
             ),

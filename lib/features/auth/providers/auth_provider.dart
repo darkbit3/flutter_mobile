@@ -83,6 +83,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  void setAuthenticated(UserModel user) {
+    state = AuthState(status: AuthStatus.authenticated, user: user);
+  }
+
   Future<void> logout() async {
     await _repo.logout();
     state = const AuthState(status: AuthStatus.unauthenticated);

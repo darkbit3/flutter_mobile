@@ -8,21 +8,25 @@ class RegisterState {
     this.isLoading = false,
     this.error,
     this.success = false,
+    this.user,
   });
 
   final bool isLoading;
   final String? error;
   final bool success;
+  final UserModel? user;
 
   RegisterState copyWith({
     bool? isLoading,
     String? error,
     bool? success,
+    UserModel? user,
   }) {
     return RegisterState(
       isLoading: isLoading ?? this.isLoading,
       error: error,
       success: success ?? this.success,
+      user: user ?? this.user,
     );
   }
 }
@@ -40,8 +44,8 @@ class RegisterNotifier extends StateNotifier<RegisterState> {
   }) async {
     state = state.copyWith(isLoading: true, error: null, success: false);
     try {
-      await _repo.register(name, email, phone, password);
-      state = state.copyWith(isLoading: false, success: true);
+      final user = await _repo.register(name, email, phone, password);
+      state = state.copyWith(isLoading: false, success: true, user: user);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }

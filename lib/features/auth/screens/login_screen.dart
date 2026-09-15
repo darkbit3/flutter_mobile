@@ -7,6 +7,7 @@ import 'register_form.dart';
 import '../utils/phone_utils.dart';
 import '../providers/auth_provider.dart';
 import '../constants/lang_constants.dart';
+import '../../../core/localization/language_provider.dart';
 
 // â”€â”€ Language options â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -58,6 +59,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(authProvider);
+    final lang = ref.watch(languageProvider);
+    if (_lang != lang) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _lang = lang);
+      });
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -72,14 +79,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 children: [
                   _LangChip(
                     label: 'EN',
-                    selected: _lang == Lang.en,
-                    onTap: () => setState(() => _lang = Lang.en),
+                    selected: lang == Lang.en,
+                    onTap: () {
+                      setState(() => _lang = Lang.en);
+                      ref.read(languageProvider.notifier).setLanguage(Lang.en);
+                    },
                   ),
                   const SizedBox(width: 8),
                   _LangChip(
                     label: '\u{12A0}\u{121B}',
-                    selected: _lang == Lang.am,
-                    onTap: () => setState(() => _lang = Lang.am),
+                    selected: lang == Lang.am,
+                    onTap: () {
+                      setState(() => _lang = Lang.am);
+                      ref.read(languageProvider.notifier).setLanguage(Lang.am);
+                    },
                   ),
                 ],
               ),

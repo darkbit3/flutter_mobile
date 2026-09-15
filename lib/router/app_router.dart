@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/providers/auth_provider.dart';
 import '../features/auth/screens/login_screen.dart';
+import '../features/auth/screens/startup_screen.dart';
 import '../features/auth/screens/reset_password_screen.dart';
 import '../features/auth/screens/change_password_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
@@ -35,9 +36,16 @@ class _RouterNotifier extends ChangeNotifier {
     final auth       = _ref.read(authProvider);
     final isLoggedIn = auth.status == AuthStatus.authenticated;
     final loc        = state.matchedLocation;
-    final publicPages = ['/login', '/forgot-password'];
+    final publicPages = ['/login', '/forgot-password', '/startup'];
 
-    if (auth.status == AuthStatus.initial) return null;
+    if (auth.status == AuthStatus.initial) return '/startup';
+
+    if (loc == '/startup') {
+      if (!isLoggedIn) return '/login';
+      if (auth.user?.isCashier ?? false) return '/cashier-dashboard';
+      if (auth.user?.isCutter ?? false) return '/cutter-dashboard';
+      return '/dashboard';
+    }
 
     if (!isLoggedIn && !publicPages.contains(loc)) return '/login';
 
@@ -69,6 +77,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect:          notifier.redirect,
     routes: [
       // ── Public ─────────────────────────────────────────────────────────
+      GoRoute(
+        path: '/startup',
+        pageBuilder: (_, state) => _noAnim(state, const StartupScreen()),
+      ),
       GoRoute(
         path:        '/login',
         pageBuilder: (_, state) => _fade(state, const LoginScreen()),

@@ -8,6 +8,7 @@ import '../../cashier/models/credit_model.dart';
 import '../../cashier/providers/credit_provider.dart';
 import '../../stock/providers/material_provider.dart';
 import '../../sales/data/sale_repository.dart';
+import '../../../core/localization/language_provider.dart';
 
 // ── Owner sales stats provider ────────────────────────────────────────────────
 final ownerSaleStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
@@ -33,6 +34,7 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user             = ref.watch(authProvider).user;
+    final text             = AppText(ref.watch(languageProvider));
     final isManufacturer   = user?.role == 'Manufacturer';
     final saleStatsAsync   = ref.watch(ownerSaleStatsProvider);
     final creditStatsAsync = ref.watch(ownerCreditStatsProvider);
@@ -90,7 +92,7 @@ class DashboardScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Welcome back',
+                      Text(text.welcomeBack,
                           style: TextStyle(
                               color: AppColors.cream.withValues(alpha: 0.6),
                               fontSize: 12)),
@@ -246,7 +248,7 @@ class DashboardScreen extends ConsumerWidget {
           ),
 
           // ── Sales Stats Row ──────────────────────────────────────────────
-          const _SectionTitle(title: 'Sales Overview'),
+          _SectionTitle(title: text.salesOverview),
           const SizedBox(height: 12),
           saleStatsAsync.when(
             loading: () => const _StatsShimmer(),
@@ -255,7 +257,7 @@ class DashboardScreen extends ConsumerWidget {
               children: [
                 Expanded(
                   child: _StatCard(
-                    title: 'Total Revenue',
+                    title: text.totalRevenue,
                     value: '${(stats['total_revenue'] as double).toStringAsFixed(0)} ETB',
                     subtitle: '${stats['total_sales']} orders',
                     icon: Icons.payments_rounded,
@@ -266,9 +268,9 @@ class DashboardScreen extends ConsumerWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _StatCard(
-                    title: 'Cash Sales',
+                    title: text.cashSales,
                     value: '${(stats['total_cash'] as double).toStringAsFixed(0)} ETB',
-                    subtitle: 'Cash collected',
+                    subtitle: text.cashCollected,
                     icon: Icons.point_of_sale_rounded,
                     accentColor: AppColors.gold,
                     bgColor: AppColors.goldLight,
@@ -280,7 +282,7 @@ class DashboardScreen extends ConsumerWidget {
           const SizedBox(height: 24),
 
           // ── Credit Summary Banner ────────────────────────────────────────
-          const _SectionTitle(title: 'Credit Overview'),
+          _SectionTitle(title: text.creditOverview),
           const SizedBox(height: 12),
           creditStatsAsync.when(
             loading: () => const _StatsShimmer(),
@@ -304,13 +306,13 @@ class DashboardScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
                       Icon(Icons.account_balance_wallet_rounded,
                           color: Colors.white, size: 20),
                       SizedBox(width: 8),
-                      Text('Credit Accounts',
-                          style: TextStyle(
+                        Text(text.creditAccounts,
+                          style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                               fontSize: 16)),
@@ -319,11 +321,11 @@ class DashboardScreen extends ConsumerWidget {
                   const SizedBox(height: 14),
                   Row(
                     children: [
-                      _CreditBannerStat(label: 'Total Credits',
+                      _CreditBannerStat(label: text.isAmharic ? 'ጠቅላላ ዱቤ' : 'Total Credits',
                           value: '${stats.totalCredits}'),
-                      _CreditBannerStat(label: 'Total Given',
+                      _CreditBannerStat(label: text.isAmharic ? 'ጠቅላላ የተሰጠ' : 'Total Given',
                           value: '${stats.totalAmount.toStringAsFixed(0)} ETB'),
-                      _CreditBannerStat(label: 'Outstanding',
+                      _CreditBannerStat(label: text.isAmharic ? 'ያልተከፈለ' : 'Outstanding',
                           value: '${stats.totalRemaining.toStringAsFixed(0)} ETB'),
                     ],
                   ),
@@ -355,7 +357,7 @@ class DashboardScreen extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ── Credit List ─────────────────────────────────────────────────
-          const _SectionTitle(title: 'Credit Customers'),
+          _SectionTitle(title: text.creditCustomers),
           const SizedBox(height: 12),
           ownerCreditsAsync.when(
             loading: () => const Padding(
@@ -380,13 +382,13 @@ class DashboardScreen extends ConsumerWidget {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: AppColors.border)),
-                  child: const Column(
+                  child: Column(
                     children: [
                       Icon(Icons.account_balance_wallet_outlined,
                           size: 36, color: AppColors.textLight),
                       SizedBox(height: 8),
-                      Text('No credit customers yet',
-                          style: TextStyle(
+                        Text(text.noCreditCustomers,
+                          style: const TextStyle(
                               color: AppColors.textMid,
                               fontWeight: FontWeight.w600)),
                     ],
@@ -408,7 +410,7 @@ class DashboardScreen extends ConsumerWidget {
           const SizedBox(height: 24),
 
           // ── Account Info ─────────────────────────────────────────────────
-          const _SectionTitle(title: 'Account Info'),
+          _SectionTitle(title: text.accountDetails),
           const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
@@ -419,15 +421,15 @@ class DashboardScreen extends ConsumerWidget {
             ),
             child: Column(
               children: [
-                _InfoRow(icon: Icons.person_outline,  label: 'Name',  value: user?.name ?? '—'),
+                _InfoRow(icon: Icons.person_outline,  label: text.fullName,  value: user?.name ?? '—'),
                 const _Divider(),
-                _InfoRow(icon: Icons.phone_outlined,  label: 'Phone', value: user?.phone ?? '—'),
+                _InfoRow(icon: Icons.phone_outlined,  label: text.phone, value: user?.phone ?? '—'),
                 const _Divider(),
                 _InfoRow(
                   icon: isManufacturer
                       ? Icons.factory_rounded
                       : Icons.storefront_rounded,
-                  label: 'Role', value: user?.role ?? '—',
+                  label: text.role, value: user?.role ?? '—',
                   valueColor: AppColors.gold,
                 ),
                 const _Divider(),
@@ -435,7 +437,7 @@ class DashboardScreen extends ConsumerWidget {
                   icon: user?.status == 'Active'
                       ? Icons.check_circle_outline
                       : Icons.block_rounded,
-                  label: 'Status', value: user?.status ?? '—',
+                  label: text.status, value: user?.status ?? '—',
                   valueColor: user?.status == 'Active'
                       ? AppColors.success
                       : AppColors.warning,

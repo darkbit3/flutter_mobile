@@ -54,7 +54,7 @@ class AuthRepository {
   }
 
   /// Register a new user.
-  Future<UserModel> register(String name, String email, String phone, String password) async {
+  Future<UserModel> register(String name, String email, String phone, String password, String role) async {
     try {
       final res = await _dio.post(
         ApiConstants.userRegister,
@@ -63,6 +63,7 @@ class AuthRepository {
           'email': email,
           'phone': phone,
           'password': password,
+          'role': role,
         },
       );
       final data = res.data['data'] as Map<String, dynamic>;

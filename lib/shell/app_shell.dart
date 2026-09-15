@@ -5,25 +5,26 @@ import '../core/theme/app_theme.dart';
 import '../core/toast/toast_overlay.dart';
 import '../core/widgets/notification_overlay.dart';
 import '../features/auth/providers/auth_provider.dart';
+import '../core/localization/language_provider.dart';
 
 class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.child});
 
   final Widget child;
 
-  static List<_NavDest> _getDestinations(dynamic user) {
+  static List<_NavDest> _getDestinations(dynamic user, AppText text) {
     final list = <_NavDest>[
-      const _NavDest(label: 'Home',    icon: Icons.home_rounded,         path: '/dashboard'),
+      _NavDest(label: text.home,    icon: Icons.home_rounded,         path: '/dashboard'),
     ];
     // Both roles get Stock and Cashier
     if (user?.role == 'Reseller' || user?.role == 'Manufacturer') {
-      list.add(const _NavDest(
-        label: 'Stock',
+      list.add(_NavDest(
+        label: text.stock,
         icon: Icons.inventory_2,
         path: '/stock',
       ));
-      list.add(const _NavDest(
-        label: 'Cashier',
+      list.add(_NavDest(
+        label: text.cashier,
         icon: Icons.point_of_sale,
         path: '/cashier',
       ));
@@ -31,23 +32,23 @@ class AppShell extends ConsumerWidget {
 
     // Only Manufacturer gets Cutter
     if (user?.role == 'Manufacturer') {
-      list.add(const _NavDest(
-        label: 'Cutter',
+      list.add(_NavDest(
+        label: text.cutter,
         icon: Icons.content_cut,
         path: '/cutter',
       ));
     }
-    list.add(const _NavDest(
-      label: 'History',
+    list.add(_NavDest(
+      label: text.history,
       icon: Icons.history_rounded,
       path: '/history',
     ));
-    list.add(const _NavDest(
-      label: 'Chat',
+    list.add(_NavDest(
+      label: text.chat,
       icon: Icons.chat_bubble_outline,
       path: '/chat',
     ));
-    list.add(const _NavDest(label: 'Profile', icon: Icons.person_rounded, path: '/profile'));
+    list.add(_NavDest(label: text.profile, icon: Icons.person_rounded, path: '/profile'));
     return list;
   }
 
@@ -61,8 +62,9 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user         = ref.watch(authProvider).user;
+    final text         = AppText(ref.watch(languageProvider));
     final location     = GoRouterState.of(context).matchedLocation;
-    final destinations = _getDestinations(user);
+    final destinations = _getDestinations(user, text);
     final selIdx       = _indexOf(location, destinations);
 
     return Scaffold(
@@ -70,7 +72,7 @@ class AppShell extends ConsumerWidget {
       appBar: _AppHeader(user: user, ref: ref),
       drawer: _AppDrawer(
         user: user, destinations: destinations,
-        selectedIdx: selIdx, ref: ref,
+        selectedIdx: selIdx, ref: ref, text: text,
       ),
       body: Stack(
         children: [
@@ -184,12 +186,14 @@ class _AppDrawer extends StatelessWidget {
     required this.destinations,
     required this.selectedIdx,
     required this.ref,
+    required this.text,
   });
 
   final dynamic        user;
   final List<_NavDest> destinations;
   final int            selectedIdx;
   final WidgetRef      ref;
+  final AppText         text;
 
   @override
   Widget build(BuildContext context) {
@@ -313,7 +317,7 @@ class _AppDrawer extends StatelessWidget {
                     indent: 16, endIndent: 16),
                 _DrawerTile(
                   icon:     Icons.lock_reset_rounded,
-                  label:    'Change Password',
+                  label:    text.changePassword,
                   selected: false,
                   onTap: () {
                     Navigator.of(context).pop();
@@ -341,7 +345,7 @@ class _AppDrawer extends StatelessWidget {
                   const Icon(Icons.logout_rounded,
                       color: Colors.redAccent, size: 20),
                   const SizedBox(width: 14),
-                  const Text('Logout',
+                  Text(text.logout,
                       style: TextStyle(
                           color: Colors.redAccent,
                           fontWeight: FontWeight.w500)),

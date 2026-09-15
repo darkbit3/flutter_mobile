@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/toast/toast_service.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/localization/language_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -38,6 +39,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
+    final text = AppText(ref.watch(languageProvider));
     final isLoading = ref.watch(alertThresholdProvider).isLoading;
 
     return Scaffold(
@@ -46,10 +48,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         backgroundColor: AppColors.dark,
         foregroundColor: AppColors.cream,
         elevation: 0,
-        title: const Text('Alert Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(text.alertSettings, style: const TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: user == null
-          ? const Center(child: Text('User not found'))
+          ? Center(child: Text(text.isAmharic ? 'ተጠቃሚ አልተገኘም' : 'User not found'))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(

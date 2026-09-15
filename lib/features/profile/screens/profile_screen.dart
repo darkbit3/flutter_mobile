@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/localization/language_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -10,6 +11,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).user;
+    final text = AppText(ref.watch(languageProvider));
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -80,7 +82,7 @@ class ProfileScreen extends ConsumerWidget {
         const SizedBox(height: 24),
 
         // ── Account Details ────────────────────────────────────────────────
-        const _SectionLabel('Account Details'),
+        _SectionLabel(text.accountDetails),
         const SizedBox(height: 10),
         Container(
           decoration: BoxDecoration(
@@ -91,12 +93,12 @@ class ProfileScreen extends ConsumerWidget {
           ),
           child: Column(
             children: [
-              _DetailRow(icon: Icons.person_outline,  label: 'Full Name', value: user?.name  ?? '—'),
+              _DetailRow(icon: Icons.person_outline,  label: text.fullName, value: user?.name  ?? '—'),
               const _Div(),
-              _DetailRow(icon: Icons.phone_outlined,  label: 'Phone',     value: user?.phone ?? '—'),
+              _DetailRow(icon: Icons.phone_outlined,  label: text.phone,     value: user?.phone ?? '—'),
               const _Div(),
               _DetailRow(
-                icon: Icons.badge_outlined, label: 'Role',
+                icon: Icons.badge_outlined, label: text.role,
                 value: user?.role ?? '—', valueColor: AppColors.gold,
               ),
               const _Div(),
@@ -104,7 +106,7 @@ class ProfileScreen extends ConsumerWidget {
                 icon: user?.status == 'Active'
                     ? Icons.check_circle_outline
                     : Icons.block_rounded,
-                label: 'Status',
+                label: text.status,
                 value: user?.status ?? '—',
                 valueColor: user?.status == 'Active'
                     ? AppColors.success
@@ -116,7 +118,7 @@ class ProfileScreen extends ConsumerWidget {
         const SizedBox(height: 24),
 
         // ── Settings ───────────────────────────────────────────────────────
-        const _SectionLabel('Settings'),
+        _SectionLabel(text.settings),
         const SizedBox(height: 10),
         _ActionTile(
           icon:     Icons.lock_reset_rounded,
@@ -130,7 +132,7 @@ class ProfileScreen extends ConsumerWidget {
             ? _ActionTile(
                 icon:     Icons.notifications_active_outlined,
                 color:    AppColors.warning,
-                title:    'Alert Settings',
+                title:    text.alertSettings,
                 subtitle: 'Configure low stock alert threshold',
                 onTap:    () => context.push('/settings'),
               )

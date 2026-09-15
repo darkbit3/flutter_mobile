@@ -41,10 +41,11 @@ class RegisterNotifier extends StateNotifier<RegisterState> {
     required String email,
     required String phone,
     required String password,
+    required String role,
   }) async {
     state = state.copyWith(isLoading: true, error: null, success: false);
     try {
-      final user = await _repo.register(name, email, phone, password);
+      final user = await _repo.register(name, email, phone, password, role);
       state = state.copyWith(isLoading: false, success: true, user: user);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());

@@ -26,6 +26,7 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   bool _obscure = true;
+  String _role = 'Manufacturer';
 
   @override
   void dispose() {
@@ -45,6 +46,7 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
       email: _emailCtrl.text.trim(),
       phone: normalizeEthiopianPhone(_phoneCtrl.text),
       password: _passCtrl.text,
+      role: _role,
     );
     final state = ref.read(registerProvider);
     if (state.success && state.user != null) {
@@ -96,6 +98,24 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
                 prefixIcon: const Icon(Icons.email_outlined),
               ),
               validator: (v) => v == null || v.isEmpty ? (isEn ? 'Email required' : 'ኢሜይል ያስፈልጋል') : null,
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _role,
+              decoration: InputDecoration(
+                labelText: isEn ? 'Role' : 'ሚና',
+                prefixIcon: const Icon(Icons.badge_outlined),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'Manufacturer', child: Text('Manufacturer')),
+                DropdownMenuItem(value: 'Reseller', child: Text('Reseller')),
+              ],
+              onChanged: (value) {
+                if (value != null) setState(() => _role = value);
+              },
+              validator: (value) => value == null || value.isEmpty
+                  ? (isEn ? 'Role required' : 'ሚና ያስፈልጋል')
+                  : null,
             ),
             const SizedBox(height: 12),
             // Phone

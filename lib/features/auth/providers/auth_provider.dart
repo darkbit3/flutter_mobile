@@ -59,9 +59,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final has = await _repo.hasToken();
     if (has) {
       try {
-        final user = await _repo.getMe();
+        final user = await _repo.getMe().timeout(const Duration(seconds: 8));
         state = AuthState(status: AuthStatus.authenticated, user: user);
       } catch (_) {
+        await _repo.logout();
         state = const AuthState(status: AuthStatus.unauthenticated);
       }
     } else {

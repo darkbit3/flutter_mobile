@@ -50,7 +50,12 @@ class AppTheme {
       useMaterial3:        true,
       colorScheme:         colorScheme,
       scaffoldBackgroundColor: AppColors.background,
-      fontFamily:          'sans-serif',
+      fontFamily:          'Roboto',
+      fontFamilyFallback: const [
+        'Noto Sans Ethiopic',
+        'Segoe UI',
+        'Arial Unicode MS',
+      ],
 
       // ── AppBar ──────────────────────────────────────────────────────────
       appBarTheme: const AppBarTheme(

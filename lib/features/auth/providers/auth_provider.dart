@@ -126,7 +126,7 @@ class ChangePasswordNotifier extends StateNotifier<ChangePasswordState> {
   }) async {
     state = state.copyWith(isLoading: true, error: null, success: false);
     try {
-      await _repo.changePassword(currentPassword, newPassword);
+      await _repo.changePassword(current: currentPassword, next: newPassword);
       state = state.copyWith(isLoading: false, success: true);
     } catch (e) {
       state = state.copyWith(

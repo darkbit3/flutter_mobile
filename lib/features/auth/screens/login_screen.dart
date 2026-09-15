@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import 'register_form.dart';
 import '../providers/auth_provider.dart';
+import '../constants/lang_constants.dart';
 
-// â”€â”€ Language options â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-enum _Lang { en, am }
+// â”€â”€ Language options â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 enum _Tab  { login, register }
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -21,7 +23,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _phoneCtr = TextEditingController();
   final _passCtr  = TextEditingController();
   bool  _obscure  = true;
-  _Lang _lang     = _Lang.en;
+  Lang  _lang     = Lang.en;
   _Tab  _tab      = _Tab.login;
 
   @override
@@ -38,19 +40,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         .login(_phoneCtr.text.trim(), _passCtr.text);
   }
 
-  // â”€â”€ Strings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  String get _title       => _lang == _Lang.en ? 'Shmeta'                      : 'áˆ½áˆœá‰³';
-  String get _subtitle    => _lang == _Lang.en ? 'Sign in to your account'     : 'á‹ˆá‹° áˆ˜áˆˆá‹«á‹Ž á‹­áŒá‰¡';
-  String get _phoneLabel  => _lang == _Lang.en ? 'Phone Number'                : 'áˆµáˆáŠ­ á‰áŒ¥áˆ­';
-  String get _phoneHint   => _lang == _Lang.en ? '09xxxxxxxx or 07xxxxxxxx'    : '09xxxxxxxx á‹ˆá‹­áˆ 07xxxxxxxx';
-  String get _passLabel   => _lang == _Lang.en ? 'Password'                    : 'á‹¨áˆšáˆµáŒ¥áˆ­ á‰ƒáˆ';
-  String get _forgotText  => _lang == _Lang.en ? 'Forgot Password?'            : 'á‹¨áˆšáˆµáŒ¥áˆ­ á‰ƒáˆ‰áŠ• áˆ¨áˆ±?';
-  String get _signInText  => _lang == _Lang.en ? 'Sign In'                     : 'áŒá‰£';
-  String get _phoneReq    => _lang == _Lang.en ? 'Phone number is required'    : 'áˆµáˆáŠ­ á‰áŒ¥áˆ­ á‹«áˆµáˆáˆáŒ‹áˆ';
-  String get _phone10     => _lang == _Lang.en ? 'Phone must be exactly 10 digits' : 'áˆµáˆáŠ­ á‰áŒ¥áˆ­ 10 áŠ áˆƒá‹ áˆ˜áˆ†áŠ• áŠ áˆˆá‰ á‰µ';
-  String get _phone09     => _lang == _Lang.en ? 'Must start with 09 or 07'   : '09 á‹ˆá‹­áˆ 07 áˆ˜áŒ€áˆ˜áˆ­ áŠ áˆˆá‰ á‰µ';
-  String get _passReq     => _lang == _Lang.en ? 'Password is required'        : 'á‹¨áˆšáˆµáŒ¥áˆ­ á‰ƒáˆ á‹«áˆµáˆáˆáŒ‹áˆ';
-  String get _passMin     => _lang == _Lang.en ? 'Minimum 6 characters'        : 'á‰¢á‹«áŠ•áˆµ 6 áŠá‹°áˆŽá‰½';
+  // â”€â”€ Strings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  String get _title       => _lang == Lang.en ? 'Shmeta'                      : '\u{123D}\u{121C}\u{1273}';
+  String get _subtitle    => _lang == Lang.en ? 'Sign in to your account'     : '\u{12C8}\u{12F0} \u{1215}\u{1233}\u{1265}\u{1215} \u{130D}\u{1263}';
+  String get _phoneLabel  => _lang == Lang.en ? 'Phone Number'                : '\u{1235}\u{120D}\u{12AD} \u{1241}\u{1305}\u{122D}';
+  String get _phoneHint   => _lang == Lang.en ? '09xxxxxxxx or 07xxxxxxxx'    : '09xxxxxxxx \u{12C8}\u{12ED}\u{121D} 07xxxxxxxx';
+  String get _passLabel   => _lang == Lang.en ? 'Password'                    : '\u{12E8}\u{121A}\u{1235}\u{1325}\u{122D} \u{134D}\u{1208}\u{1303}';
+  String get _forgotText  => _lang == Lang.en ? 'Forgot Password?'            : '\u{12E8}\u{121A}\u{1235}\u{1325}\u{122D} \u{134D}\u{1208}\u{1303} \u{1228}\u{1231}?';
+  String get _signInText  => _lang == Lang.en ? 'Sign In'                     : '\u{130D}\u{1263}';
+  String get _phoneReq    => _lang == Lang.en ? 'Phone number is required'    : '\u{1235}\u{120D}\u{12AD} \u{1241}\u{1305}\u{122D} \u{12EB}\u{1235}\u{1348}\u{120D}\u{130B}\u{120D}';
+  String get _phone10     => _lang == Lang.en ? 'Phone must be exactly 10 digits' : '\u{1235}\u{120D}\u{12AD} \u{1241}\u{1305}\u{122D} \u{1260}\u{1275}\u{12AD}\u{12AD}\u{120D} 10 \u{12A0}\u{1203}\u{12DE}\u{127D} \u{1218}\u{1206}\u{1295} \u{12A0}\u{1208}\u{1260}\u{1275}';
+  String get _phone09     => _lang == Lang.en ? 'Must start with 09 or 07'   : '09 \u{12C8}\u{12ED}\u{121D} 07 \u{121B}\u{1230}\u{1300}\u{1218}\u{122D} \u{12A0}\u{1208}\u{1260}\u{1275}';
+  String get _passReq     => _lang == Lang.en ? 'Password is required'        : '\u{12E8}\u{121A}\u{1235}\u{1325}\u{122D} \u{134D}\u{1208}\u{1303} \u{12EB}\u{1235}\u{1348}\u{120D}\u{130B}\u{120D}';
+  String get _passMin     => _lang == Lang.en ? 'Minimum 6 characters'        : '\u{1262}\u{12EB}\u{1295}\u{1235} 6 \u{1241}\u{121D}\u{134A}\u{12CE}\u{127D}';
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +63,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // â”€â”€ Language switcher bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // â”€â”€ Language switcher bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: Row(
@@ -69,20 +71,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 children: [
                   _LangChip(
                     label: 'EN',
-                    selected: _lang == _Lang.en,
-                    onTap: () => setState(() => _lang = _Lang.en),
+                    selected: _lang == Lang.en,
+                    onTap: () => setState(() => _lang = Lang.en),
                   ),
                   const SizedBox(width: 8),
                   _LangChip(
-                    label: 'áŠ áˆ›',
-                    selected: _lang == _Lang.am,
-                    onTap: () => setState(() => _lang = _Lang.am),
+                    label: '\u{12A0}\u{121B}',
+                    selected: _lang == Lang.am,
+                    onTap: () => setState(() => _lang = Lang.am),
                   ),
                 ],
               ),
             ),
 
-            // â”€â”€ Rest of screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // â”€â”€ Rest of screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Expanded(
               child: Center(
                 child: SingleChildScrollView(
@@ -94,7 +96,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       children: [
                         const SizedBox(height: 16),
 
-                        // â”€â”€ Logo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                        // â”€â”€ Logo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                         Center(
                           child: Column(
                             children: [
@@ -108,7 +110,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       color: AppColors.dark.withValues(alpha: 0.25),
                                       blurRadius: 20,
                                       offset: const Offset(0, 8),
-                                    ),
+                                    ),   
                                   ],
                                 ),
                                 clipBehavior: Clip.antiAlias,
@@ -141,7 +143,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         const SizedBox(height: 28),
 
-                        // â”€â”€ Tab switcher: Login / Register â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                        // â”€â”€ Tab switcher: Login / Register â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -152,12 +154,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           child: Row(
                             children: [
                               _TabButton(
-                                label: _lang == _Lang.en ? 'Sign In' : 'áŒá‰£',
+                                label: _lang == Lang.en ? 'Sign In' : '\u{130D}\u{1263}',
                                 selected: _tab == _Tab.login,
                                 onTap: () => setState(() => _tab = _Tab.login),
                               ),
                               _TabButton(
-                                label: _lang == _Lang.en ? 'Register' : 'á‰°áˆ˜á‹áŒˆá‰¥',
+                                label: _lang == Lang.en ? 'Register' : '\u{1270}\u{1218}\u{12DD}\u{130D}\u{1265}',
                                 selected: _tab == _Tab.register,
                                 onTap: () => setState(() => _tab = _Tab.register),
                               ),
@@ -166,7 +168,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // â”€â”€ Tab content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                        // â”€â”€ Tab content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 250),
                           child: _tab == _Tab.login
@@ -193,7 +195,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   onForgot:   () => context.push('/forgot-password'),
                                   onSubmit:   _submit,
                                 )
-                              : _RegisterCard(
+                              : RegisterForm(
                                   key: const ValueKey('register'),
                                   lang: _lang,
                                 ),
@@ -213,7 +215,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-// â”€â”€ Tab button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€ Tab button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _TabButton extends StatelessWidget {
   const _TabButton({required this.label, required this.selected, required this.onTap});
   final String label;
@@ -247,7 +249,39 @@ class _TabButton extends StatelessWidget {
   }
 }
 
-// â”€â”€ Login card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€ Language chip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+class _LangChip extends StatelessWidget {
+  const _LangChip({required this.label, required this.selected, required this.onTap});
+  final String label;
+  final bool   selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.dark : Colors.white,
+          border: Border.all(color: selected ? AppColors.dark : AppColors.border),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? AppColors.cream : AppColors.dark,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// â”€â”€ Login card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _LoginCard extends StatelessWidget {
   const _LoginCard({
     super.key,
@@ -279,7 +313,7 @@ class _LoginCard extends StatelessWidget {
   final bool obscure;
   final bool loading;
   final String? error;
-  final _Lang lang;
+  final Lang lang;
   final String phoneLabel, phoneHint, passLabel, forgotText, signInText;
   final String phoneReq, phone10, phone09, passReq, passMin;
   final VoidCallback onToggleObscure;
@@ -408,7 +442,7 @@ class _LoginCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 10),
                           Text(
-                            lang == _Lang.en ? 'Signing in...' : 'áŠ¥á‹¨áŒˆá‰£ áŠá‹...',
+                            lang == Lang.en ? 'Signing in...' : '\u{1260}\u{1218}\u{130D}\u{1263}\u{1275}...',
                             style: const TextStyle(fontSize: 14),
                           ),
                         ],
@@ -423,14 +457,14 @@ class _LoginCard extends StatelessWidget {
   }
 }
 
-// â”€â”€ Register card (info) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€ Register card (info) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _RegisterCard extends StatelessWidget {
   const _RegisterCard({super.key, required this.lang});
-  final _Lang lang;
+  final Lang lang;
 
   @override
   Widget build(BuildContext context) {
-    final isEn = lang == _Lang.en;
+    final isEn = lang == Lang.en;
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
@@ -457,14 +491,14 @@ class _RegisterCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            isEn ? 'New Account' : 'áŠ á‹²áˆµ áˆ˜áˆˆá‹«',
+            isEn ? 'New Account' : '\u{12A0}\u{12ED}\u{1235} \u{1273}\u{12D4}\u{1275}\u{1235}',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.dark),
           ),
           const SizedBox(height: 10),
           Text(
             isEn
                 ? 'Accounts are created by your admin.\nContact your Shmeta administrator to get registered.'
-                : 'áˆ˜áˆˆá‹«á‹Ž á‰ áŠ áˆµá‰°á‹³á‹³áˆªá‹Ž á‹­áˆáŒ áˆ«áˆá¢\náˆŠáˆ˜á‹˜áŒˆá‰¡ áˆˆáˆšáˆáˆáŒ‰ Shmeta áŠ áˆµá‰°á‹³á‹³áˆªá‹ŽáŠ• á‹«áŠáŒ‹áŒáˆ©á¢',
+                : '\u{12A5}\u{12ED}\u{1275}\u{12A5}\u{1233}\u{1275} \u{12A0}\u{12A0}\u{12ED}\u{1235}\u{12A0}\u{12E8}\u{120D}\u{12AD}\u{1295}\u{1275} \u{12AD}\u{1275}\u{1265}\u{1275}\u{1295}\u{1275}\u{1295}\u{1275}\u{122D}\u{12A5}\u{1275}\u{120D}\u{1265}\u{1274}\u{121D}\u{12A5}\u{120D}\u{12D5}\u{1233}\u{1275}\u{120D}\u{1303}\u{120D}\u{1295}\u{12C8}\u{1235}\u{1293}\u{120D}\u{1265}\u{1235}\u{1275}\u{120D}\u{12A3}\u{1275}\u{120D} \u{12A0}\u{1235}\u{120D}\u{1260}\u{1275}\u{120D}\u{1295}\u{1275}\u{120D}\u{1235}\u{12C8}\u{1235} Shmeta \u{12A0}\u{12ED}\u{1235}\u{12A0}\u{12E8}\u{120D}\u{12AD}\u{1295}\u{1275}\u{120D}\u{1235}\u{12C8}\u{1235}\u{1275}\u{120D}\u{12A3}\u{1275}\u{120D}\u{120D}\u{12C8}\u{1260}\u{1275}\u{120D}\u{1273}\u{120D}\u{12A5}\u{1275}\u{120D}\u{122D}',
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 13.5, color: AppColors.textMid, height: 1.6),
           ),
@@ -484,7 +518,7 @@ class _RegisterCard extends StatelessWidget {
                   child: Text(
                     isEn
                         ? 'Ask your admin to add your phone number and role in the Shmeta Admin Panel.'
-                        : 'áŠ áˆµá‰°á‹³á‹³áˆªá‹Ž Shmeta áŠ áˆµá‰°á‹³á‹³áˆª á“áŠ“áˆ‰ áˆ‹á‹­ áˆµáˆáŠ­ á‰áŒ¥áˆ­á‹ŽáŠ• áŠ¥áŠ“ áˆšáŠ“á‹ŽáŠ• áŠ¥áŠ•á‹²áŒ¨áˆáˆ­ á‹­áŒ á‹­á‰á¢',
+                        : '\u{12A0}\u{12ED}\u{1235}\u{12A0}\u{12E8}\u{120D}\u{12AD}\u{1295}\u{1275}\u{120D}\u{1235}\u{12C8}\u{1235} Shmeta \u{12A0}\u{12ED}\u{1235}\u{12A0}\u{12E8}\u{120D}\u{12AD}\u{1295}\u{1275}\u{120D}\u{1235} \u{12C9}\u{12A5}\u{12AB}\u{12A5}\u{121D}\u{12AA} \u{12A5}\u{12AD}\u{12C8}\u{12F5} \u{1235}\u{120D}\u{12AD}\u{12A5}\u{1235}\u{120D} \u{12EB}\u{12CD}\u{12A3}\u{1295} \u{12A0}\u{1233}\u{12A5}\u{1275}\u{120D}\u{1275}\u{12A0}\u{1260}\u{1275}\u{120D}\u{1295}\u{1275}\u{120D} ',
                     style: const TextStyle(fontSize: 12.5, color: AppColors.dark, height: 1.4),
                   ),
                 ),
@@ -496,53 +530,3 @@ class _RegisterCard extends StatelessWidget {
     );
   }
 }
-
-// â”€â”€ Language chip widget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-class _LangChip extends StatelessWidget {
-  const _LangChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool   selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color:        selected ? AppColors.dark : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border:       Border.all(
-            color: selected ? AppColors.dark : AppColors.border,
-            width: 1.5,
-          ),
-          boxShadow: selected
-              ? [BoxShadow(
-                  color: AppColors.dark.withValues(alpha: 0.15),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                )]
-              : [],
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize:   13,
-            fontWeight: FontWeight.w600,
-            color:      selected ? AppColors.cream : AppColors.textMid,
-            letterSpacing: 0.3,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// â”€â”€ Language options â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

@@ -53,8 +53,31 @@ class AuthRepository {
     }
   }
 
-  /// Change password.
-  Future<void> changePassword(String current, String next) async {
+  /// Register a new user.
+  Future<UserModel> register(String name, String email, String phone, String password) async {
+    try {
+      final res = await _dio.post(
+        ApiConstants.userRegister,
+        data: {
+          'name': name,
+          'email': email,
+          'phone': phone,
+          'password': password,
+        },
+      );
+      final data = res.data['data'] as Map<String, dynamic>;
+      // Store tokens if returned
+      if (data.containsKey('accessToken')) {
+        await _storage.write(key: 'access_token', value: data['accessToken'] as String);
+        await _storage.write(key: 'refresh_token', value: data['refreshToken'] as String);
+      }
+      return UserModel.fromJson(data['user'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+  /// Change password for user.
+  Future<void> changePassword({required String current, required String next}) async {
     try {
       await _dio.put(
         ApiConstants.userChangePassword,

@@ -5,6 +5,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/dio_client.dart';
 import '../models/user_model.dart';
+import '../models/registration_plan.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(ref.watch(dioProvider));
@@ -29,7 +30,7 @@ class AuthRepository {
       );
       final data = res.data['data'] as Map<String, dynamic>;
       await _storage.write(
-          key: 'access_token',  value: data['accessToken']  as String);
+          key: 'access_token', value: data['accessToken'] as String);
       await _storage.write(
           key: 'refresh_token', value: data['refreshToken'] as String);
       return UserModel.fromJson(data['user'] as Map<String, dynamic>);
@@ -54,7 +55,22 @@ class AuthRepository {
   }
 
   /// Register a new user.
-  Future<UserModel> register(String name, String email, String phone, String password, String role) async {
+  Future<List<RegistrationPlan>> getRegisterPlans() async {
+    try {
+      final res = await _dio.get(ApiConstants.registerPlans);
+      final plans = res.data['data'] as List<dynamic>;
+      return plans
+          .map(
+              (plan) => RegistrationPlan.fromJson(plan as Map<String, dynamic>))
+          .where((plan) => plan.enabled)
+          .toList();
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<RegistrationResult> register(String name, String email, String phone,
+      String password, String role, String planKey) async {
     try {
       final res = await _dio.post(
         ApiConstants.userRegister,
@@ -64,21 +80,31 @@ class AuthRepository {
           'phone': phone,
           'password': password,
           'role': role,
+          'plan': planKey,
         },
       );
       final data = res.data['data'] as Map<String, dynamic>;
       // Store tokens if returned
       if (data.containsKey('accessToken')) {
-        await _storage.write(key: 'access_token', value: data['accessToken'] as String);
-        await _storage.write(key: 'refresh_token', value: data['refreshToken'] as String);
+        await _storage.write(
+            key: 'access_token', value: data['accessToken'] as String);
+        await _storage.write(
+            key: 'refresh_token', value: data['refreshToken'] as String);
       }
-      return UserModel.fromJson(data['user'] as Map<String, dynamic>);
+      return RegistrationResult(
+        user: UserModel.fromJson(data['user'] as Map<String, dynamic>),
+        plan: RegistrationPlan.fromJson(
+            data['registrationPlan'] as Map<String, dynamic>),
+        registrationFree: data['registrationFree'] == true,
+      );
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }
   }
+
   /// Change password for user.
-  Future<void> changePassword({required String current, required String next}) async {
+  Future<void> changePassword(
+      {required String current, required String next}) async {
     try {
       await _dio.put(
         ApiConstants.userChangePassword,

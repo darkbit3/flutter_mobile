@@ -303,13 +303,17 @@ class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerPr
         appUri,
         mode: LaunchMode.externalApplication,
       );
-      if (launched) return; // success — app opened
+      if (launched) {
+        if (mounted) context.go('/login');
+        return;
+      }
     } catch (_) {}
 
     // 2. Fallback: web link in default browser / Telegram web
     final webUri = Uri.parse('https://t.me/$clean');
     try {
-      await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      final launched = await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      if (launched && mounted) context.go('/login');
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -277,25 +277,39 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
               keyboardType: TextInputType.phone,
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
-                LengthLimitingTextInputFormatter(14),
+                TextInputFormatter.withFunction((oldValue, newValue) {
+                  final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+                  final maxDigits = digits.startsWith('251')
+                      ? 12
+                      : digits.startsWith('0')
+                          ? 10
+                          : 9;
+                  final maxLength = newValue.text.startsWith('+') ? 13 : maxDigits;
+                  return newValue.text.length <= maxLength ? newValue : oldValue;
+                }),
               ],
               decoration: InputDecoration(
                 labelText: isEn ? 'Phone Number' : 'ስልክ ቁጥር',
                 prefixIcon: const Icon(Icons.phone_outlined),
-                hintText: isEn ? '09... or 2519...' : '09... ወይም 2519...',
+                hintText: isEn ? '9..., 09..., or 2519...' : '9..., 09..., ወይም 2519...',
                 counterText: '',
               ),
               validator: (v) {
                 if (v == null || v.isEmpty) {
                   return isEn ? 'Phone required' : 'ስልክ ያስፈልጋል';
                 }
-                final normalized = normalizeEthiopianPhone(v);
-                if (normalized.length != 12) {
+                final digits = v.replaceAll(RegExp(r'\D'), '');
+                final expectedLength = digits.startsWith('251')
+                  ? 12
+                  : digits.startsWith('0')
+                    ? 10
+                    : 9;
+                if (digits.length != expectedLength) {
                   return isEn
-                      ? 'Enter 9 digits starting with 9 or 7'
-                      : 'ከ9 ወይም 7 የሚጀምር 9 አሃዞችን ያስገቡ';
+                    ? 'Use 9 digits (9...), 10 digits (09...), or 12 digits (251...)'
+                    : '9, 10, ወይም 12 አሃዞች ያስገቡ';
                 }
-                if (!isValidEthiopianPhone(normalized)) {
+                if (!isValidEthiopianPhone(v)) {
                   return isEn
                       ? 'Must start with 9 or 7 (e.g. 09... or 07...)'
                       : 'በ 9 ወይም 7 መጀመር አለበት';

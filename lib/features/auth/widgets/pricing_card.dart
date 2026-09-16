@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/registration_plan.dart';
-import '../constants/lang_constants.dart';
 
 /// Features and metadata descriptor for each registration plan tier.
 class PlanTierInfo {

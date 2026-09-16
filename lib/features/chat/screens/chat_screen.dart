@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/localization/language_provider.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/notifications/local_notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 
 class _ChatPerson {
@@ -67,6 +68,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final List<_ChatPerson> _people = [];
   final List<_ChatGroup> _groups = [];
   final Map<String, List<_ChatMessage>> _messages = {};
+  final Set<String> _initializedConversations = {};
   _ChatTab _tab = _ChatTab.people;
   String? _selectedPersonId;
   String? _selectedGroupId;
@@ -132,9 +134,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     try {
       if (mounted) setState(() => _loadingMessages = true);
       final res = await ref.read(dioProvider).get('${ApiConstants.chatMessages}/$personId');
-      _messages[personId] = _parseMessages(res.data['data'] as List?);
+      final previous = _messages[personId] ?? const <_ChatMessage>[];
+      final messages = _parseMessages(res.data['data'] as List?);
+      _notifyForNewMessages(
+        conversationId: personId,
+        previous: previous,
+        messages: messages,
+        senderName: _person?.name ?? 'your contact',
+      );
+      _messages[personId] = messages;
     } catch (_) {
-      _messages[personId] = const [];
+      // Keep the last successful response so a temporary network failure does
+      // not make the next poll treat the whole conversation as new.
     } finally {
       if (mounted) setState(() => _loadingMessages = false);
     }
@@ -144,11 +155,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     try {
       if (mounted) setState(() => _loadingMessages = true);
       final res = await ref.read(dioProvider).get('${ApiConstants.chatGroups}/$groupId/messages');
-      _messages[groupId] = _parseMessages(res.data['data'] as List?);
+      final previous = _messages[groupId] ?? const <_ChatMessage>[];
+      final messages = _parseMessages(res.data['data'] as List?);
+      _notifyForNewMessages(
+        conversationId: groupId,
+        previous: previous,
+        messages: messages,
+        senderName: _group?.name ?? 'your group',
+      );
+      _messages[groupId] = messages;
     } catch (_) {
-      _messages[groupId] = const [];
+      // Keep the last successful response so a temporary network failure does
+      // not make the next poll treat the whole conversation as new.
     } finally {
       if (mounted) setState(() => _loadingMessages = false);
+    }
+  }
+
+  void _notifyForNewMessages({
+    required String conversationId,
+    required List<_ChatMessage> previous,
+    required List<_ChatMessage> messages,
+    required String senderName,
+  }) {
+    if (!_initializedConversations.contains(conversationId)) {
+      _initializedConversations.add(conversationId);
+      return;
+    }
+
+    final previousIds = previous.map((message) => message.id).toSet();
+    for (final message in messages) {
+      if (message.sender != 'me' && !previousIds.contains(message.id)) {
+        unawaited(LocalNotificationService.instance.showChatMessage(
+          sender: senderName,
+          message: message.text,
+        ));
+      }
     }
   }
 
@@ -298,7 +340,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget _groupTile(_ChatGroup group) => ListTile(
         selected: group.id == _selectedGroupId,
         selectedTileColor: const Color(0xFFECFDF5),
-        leading: CircleAvatar(backgroundColor: AppColors.success, child: const Icon(Icons.groups_rounded, color: Colors.white)),
+        leading: const CircleAvatar(backgroundColor: AppColors.success, child: Icon(Icons.groups_rounded, color: Colors.white)),
         title: Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(group.description.isEmpty ? '${group.memberCount} members' : group.description, maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: Text('${group.memberCount}', style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),

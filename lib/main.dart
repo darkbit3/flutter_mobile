@@ -5,6 +5,7 @@ import 'core/error/app_error_screen.dart';
 import 'core/network/dio_client.dart';
 import 'core/theme/app_theme.dart';
 import 'router/app_router.dart';
+import 'core/notifications/local_notification_service.dart';
 
 void main() async {
   // 1️⃣  Register global Flutter + platform error hooks
@@ -14,6 +15,7 @@ void main() async {
   //     ensureInitialized must be called in the same zone as runApp.
   await GlobalErrorHandler.runGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    await LocalNotificationService.instance.requestPermission();
 
     // 🚀 Kick off server warm-up immediately — runs in background while app boots
     warmUpServer();

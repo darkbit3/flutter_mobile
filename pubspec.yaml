@@ -26,6 +26,7 @@ dependencies:
   # UI helpers
   cupertino_icons: ^1.0.6
   image_picker: ^1.1.2
+  flutter_local_notifications: ^18.0.1
 
 dev_dependencies:
   flutter_test:

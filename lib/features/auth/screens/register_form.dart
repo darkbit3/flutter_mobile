@@ -48,8 +48,9 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
         _selectedPlanKey = plans.isEmpty ? null : plans.first.key;
       });
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() => _planError = 'Unable to load registration plans');
+      }
     }
   }
 

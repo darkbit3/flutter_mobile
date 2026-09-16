@@ -6,6 +6,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/network/dio_client.dart';
 import '../models/user_model.dart';
 import '../models/registration_plan.dart';
+import '../models/payment_info.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(ref.watch(dioProvider));
@@ -84,8 +85,9 @@ class AuthRepository {
         },
       );
       final data = res.data['data'] as Map<String, dynamic>;
+      final pendingApproval = data['pendingApproval'] == true;
       // Store tokens if returned
-      if (data.containsKey('accessToken')) {
+      if (data.containsKey('accessToken') && data['accessToken'] != null) {
         await _storage.write(
             key: 'access_token', value: data['accessToken'] as String);
         await _storage.write(
@@ -96,7 +98,29 @@ class AuthRepository {
         plan: RegistrationPlan.fromJson(
             data['registrationPlan'] as Map<String, dynamic>),
         registrationFree: data['registrationFree'] == true,
+        pendingApproval: pendingApproval,
       );
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  /// Get active payment info (bank accounts & Telegram handle) for registration payments.
+  Future<PaymentInfo> getPaymentInfo() async {
+    try {
+      final res = await _dio.get(ApiConstants.paymentInfo);
+      return PaymentInfo.fromJson(res.data['data'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  /// Poll registration status for pending account.
+  Future<RegistrationStatusData> getRegistrationStatus(String phone) async {
+    try {
+      final res = await _dio.get('${ApiConstants.registrationStatus}/$phone');
+      return RegistrationStatusData.fromJson(
+          res.data['data'] as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }

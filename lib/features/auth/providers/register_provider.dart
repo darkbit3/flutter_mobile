@@ -12,6 +12,7 @@ class RegisterState {
     this.user,
     this.plan,
     this.registrationFree = false,
+    this.pendingApproval = false,
   });
 
   final bool isLoading;
@@ -20,6 +21,7 @@ class RegisterState {
   final UserModel? user;
   final RegistrationPlan? plan;
   final bool registrationFree;
+  final bool pendingApproval;
 
   RegisterState copyWith({
     bool? isLoading,
@@ -28,6 +30,7 @@ class RegisterState {
     UserModel? user,
     RegistrationPlan? plan,
     bool? registrationFree,
+    bool? pendingApproval,
   }) {
     return RegisterState(
       isLoading: isLoading ?? this.isLoading,
@@ -36,6 +39,7 @@ class RegisterState {
       user: user ?? this.user,
       plan: plan ?? this.plan,
       registrationFree: registrationFree ?? this.registrationFree,
+      pendingApproval: pendingApproval ?? this.pendingApproval,
     );
   }
 }
@@ -63,6 +67,7 @@ class RegisterNotifier extends StateNotifier<RegisterState> {
         user: result.user,
         plan: result.plan,
         registrationFree: result.registrationFree,
+        pendingApproval: result.pendingApproval,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());

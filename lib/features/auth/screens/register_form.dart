@@ -1,13 +1,17 @@
-// Register form widget for user registration with SaaS pricing plan selector
+// Register form widget for user registration with SaaS pricing plan selector & payment approval flow
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/register_provider.dart';
 import '../providers/auth_provider.dart';
 import '../data/auth_repository.dart';
 import '../models/registration_plan.dart';
+import '../models/payment_info.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/notifications/local_notification_service.dart';
 import '../constants/lang_constants.dart';
 import '../utils/phone_utils.dart';
 import '../widgets/pricing_card.dart';
@@ -21,7 +25,7 @@ class RegisterForm extends ConsumerStatefulWidget {
   ConsumerState<RegisterForm> createState() => _RegisterFormState();
 }
 
-class _RegisterFormState extends ConsumerState<RegisterForm> {
+class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -29,7 +33,7 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
 
-  int _step = 0; // 0 = Account Info, 1 = Choose Plan
+  int _step = 0; // 0 = Account Info, 1 = Choose Plan, 2 = Payment & Approval
   bool _obscure = true;
   String _role = 'Manufacturer';
   List<RegistrationPlan> _plans = const [];
@@ -37,6 +41,15 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
   String _selectedFilter = 'all'; // 'all', 'monthly', 'extended'
   late PageController _pageController;
   int _currentPage = 0;
+
+  // Step 2 state
+  PaymentInfo? _paymentInfo;
+  bool _loadingPaymentInfo = false;
+  Timer? _statusPollTimer;
+  RegistrationStatusData? _currentStatus;
+  bool _approvedHandled = false;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   static const List<RegistrationPlan> _defaultFallbackPlans = [
     RegistrationPlan(
@@ -66,6 +79,13 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
   void initState() {
     super.initState();
     _pageController = PageController(viewportFraction: 0.88);
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.85, end: 1.15).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
     _loadPlans();
   }
 
@@ -94,6 +114,8 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
 
   @override
   void dispose() {
+    _statusPollTimer?.cancel();
+    _pulseController.dispose();
     _pageController.dispose();
     _nameCtrl.dispose();
     _emailCtrl.dispose();
@@ -115,53 +137,171 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
     return list;
   }
 
+  RegistrationPlan? get _selectedPlan {
+    final list = _plans.isNotEmpty ? _plans : _defaultFallbackPlans;
+    try {
+      return list.firstWhere((p) => p.key == _selectedPlanKey);
+    } catch (_) {
+      return list.isNotEmpty ? list.first : null;
+    }
+  }
+
   void _proceedToPlanSelection() {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _step = 1);
   }
 
+  Future<void> _loadPaymentInfo() async {
+    setState(() => _loadingPaymentInfo = true);
+    try {
+      final info = await ref.read(authRepositoryProvider).getPaymentInfo();
+      if (mounted) {
+        setState(() {
+          _paymentInfo = info;
+          _loadingPaymentInfo = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingPaymentInfo = false);
+      }
+    }
+  }
+
+  void _startStatusPolling(String phone) {
+    _statusPollTimer?.cancel();
+    _statusPollTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      try {
+        final statusData = await ref.read(authRepositoryProvider).getRegistrationStatus(phone);
+        if (!mounted) return;
+        setState(() {
+          _currentStatus = statusData;
+        });
+
+        if (statusData.isApproved && !_approvedHandled) {
+          _approvedHandled = true;
+          timer.cancel();
+          _onApproved();
+        } else if (statusData.isRejected) {
+          timer.cancel();
+          _onRejected(statusData.rejectionReason);
+        }
+      } catch (_) {}
+    });
+  }
+
+  void _onApproved() {
+    final isEn = widget.lang == Lang.en;
+    LocalNotificationService.instance.showRegistrationNotification(
+      title: isEn ? '🎉 Registration Approved!' : '🎉 ምዝገባዎ ጸድቋል!',
+      message: isEn
+          ? 'Your payment has been verified. Your account is now active.'
+          : 'ክፍያዎ ተረጋግጧል። መለያዎ አሁን ነቅቷል።',
+    );
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 28),
+            const SizedBox(width: 8),
+            Text(isEn ? 'Approved!' : 'ተፈቅዷል!', style: const TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          isEn
+              ? 'Congratulations! Super Admin has reviewed and approved your registration. You can now log into your account.'
+              : 'እንኳን ደስ አለዎት! ሱፐር አድሚኑ ምዝገባዎን አይቶ አጽድቆታል። አሁን ወደ መለያዎ መግባት ይችላሉ።',
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              context.go('/login');
+            },
+            child: Text(isEn ? 'Proceed to Login' : 'ወደ መግቢያ ይሂዱ'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onRejected(String? reason) {
+    final isEn = widget.lang == Lang.en;
+    LocalNotificationService.instance.showRegistrationNotification(
+      title: isEn ? 'Registration Rejected' : 'ምዝገባው ውድቅ ተደርጓል',
+      message: reason ?? (isEn ? 'Please check your payment receipt.' : 'እባክዎ ደረሰኝዎን ያረጋግጡ።'),
+    );
+  }
+
   Future<void> _submit() async {
     final selectedKey = _selectedPlanKey ??
         (_plans.isNotEmpty ? _plans.first.key : 'oneMonth');
+    final normalizedPhone = normalizeEthiopianPhone(_phoneCtrl.text);
 
     final notifier = ref.read(registerProvider.notifier);
     await notifier.register(
       name: _nameCtrl.text.trim(),
       email: _emailCtrl.text.trim(),
-      phone: normalizeEthiopianPhone(_phoneCtrl.text),
+      phone: normalizedPhone,
       password: _passCtrl.text,
       role: _role,
       planKey: selectedKey,
     );
     final state = ref.read(registerProvider);
     if (state.success && state.user != null) {
-      ref.read(authProvider.notifier).setAuthenticated(state.user!);
-      if (mounted) {
-        await showDialog<void>(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(state.registrationFree
-                ? (widget.lang == Lang.en ? 'Welcome to Shmeta' : 'እንኳን ወደ ሽመታ በደህና መጡ')
-                : (widget.lang == Lang.en ? 'Registration Complete' : 'ምዝገባው ተጠናቋል')),
-            content: Text(
-              state.registrationFree
-                  ? (widget.lang == Lang.en
-                      ? 'Your account has been activated with ${state.plan?.label ?? 'your plan'}.'
-                      : 'መለያዎ በ${state.plan?.label ?? 'እቅድዎ'} በተሳካ ሁኔታ ነቅቷል።')
-                  : (widget.lang == Lang.en
-                      ? 'Your account was registered with a fee of ETB ${state.plan?.fee.toStringAsFixed(2) ?? '0.00'}.'
-                      : 'መለያዎ በ ETB ${state.plan?.fee.toStringAsFixed(2) ?? '0.00'} ክፍያ ተመዝግቧል።'),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: Text(widget.lang == Lang.en ? 'Get Started' : 'ጀምር'),
+      if (state.pendingApproval) {
+        // Step 2: Paid plan pending admin approval
+        setState(() => _step = 2);
+        _loadPaymentInfo();
+        _startStatusPolling(normalizedPhone);
+      } else {
+        // Free plan: Immediate activation
+        ref.read(authProvider.notifier).setAuthenticated(state.user!);
+        if (mounted) {
+          await showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (dialogContext) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text(widget.lang == Lang.en ? 'Welcome to Shmeta' : 'እንኳን ወደ ሽመታ በደህና መጡ'),
+              content: Text(
+                widget.lang == Lang.en
+                    ? 'Your account has been activated with ${state.plan?.label ?? 'your plan'}.'
+                    : 'መለያዎ በ${state.plan?.label ?? 'እቅድዎ'} በተሳካ ሁኔታ ነቅቷል።',
               ),
-            ],
-          ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text(widget.lang == Lang.en ? 'Get Started' : 'ጀምር'),
+                ),
+              ],
+            ),
+          );
+          if (mounted) context.go('/dashboard');
+        }
+      }
+    }
+  }
+
+  Future<void> _openTelegram(String username) async {
+    final clean = username.replaceAll('@', '').trim();
+    final uri = Uri.parse('https://t.me/$clean');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open Telegram: t.me/$clean')),
         );
-        if (mounted) context.go('/dashboard');
       }
     }
   }
@@ -171,15 +311,22 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
     final registerState = ref.watch(registerProvider);
     final isEn = widget.lang == Lang.en;
 
+    Widget currentWidget;
+    if (_step == 0) {
+      currentWidget = _buildAccountInfoStep(isEn);
+    } else if (_step == 1) {
+      currentWidget = _buildPricingPlansStep(isEn, registerState);
+    } else {
+      currentWidget = _buildPaymentWaitingStep(isEn);
+    }
+
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
       transitionBuilder: (child, animation) => FadeTransition(
         opacity: animation,
         child: child,
       ),
-      child: _step == 0
-          ? _buildAccountInfoStep(isEn)
-          : _buildPricingPlansStep(isEn, registerState),
+      child: currentWidget,
     );
   }
 
@@ -205,11 +352,9 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Step header indicator
             _StepProgressBar(currentStep: 0, isEn: isEn),
             const SizedBox(height: 20),
 
-            // Name
             TextFormField(
               controller: _nameCtrl,
               decoration: InputDecoration(
@@ -225,7 +370,6 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
             ),
             const SizedBox(height: 12),
 
-            // Email
             TextFormField(
               controller: _emailCtrl,
               keyboardType: TextInputType.emailAddress,
@@ -242,7 +386,6 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
             ),
             const SizedBox(height: 12),
 
-            // Role selection
             DropdownButtonFormField<String>(
               initialValue: _role,
               decoration: InputDecoration(
@@ -271,7 +414,6 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
             ),
             const SizedBox(height: 12),
 
-            // Phone
             TextFormField(
               controller: _phoneCtrl,
               keyboardType: TextInputType.phone,
@@ -319,7 +461,6 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
             ),
             const SizedBox(height: 12),
 
-            // Password
             TextFormField(
               controller: _passCtrl,
               obscureText: _obscure,
@@ -349,7 +490,6 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
             ),
             const SizedBox(height: 12),
 
-            // Confirm Password
             TextFormField(
               controller: _confirmCtrl,
               obscureText: _obscure,
@@ -366,7 +506,6 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
             ),
             const SizedBox(height: 24),
 
-            // Next button
             SizedBox(
               height: 50,
               child: ElevatedButton(
@@ -401,6 +540,8 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
   // ── Step 1: Pricing Plans Selector ─────────────────────────────────────────
   Widget _buildPricingPlansStep(bool isEn, dynamic registerState) {
     final displayPlans = _filteredPlans;
+    final plan = _selectedPlan;
+    final bool isPaid = plan != null && !plan.isFree;
 
     return Container(
       key: const ValueKey('step_1_pricing'),
@@ -420,14 +561,12 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Step header indicator
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: _StepProgressBar(currentStep: 1, isEn: isEn),
           ),
           const SizedBox(height: 18),
 
-          // Header matching the reference design
           PricingSelectorHeader(
             isEn: isEn,
             selectedFilter: _selectedFilter,
@@ -443,7 +582,6 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
           ),
           const SizedBox(height: 16),
 
-          // Plan Cards Carousel
           SizedBox(
             height: 480,
             child: PageView.builder(
@@ -456,14 +594,14 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
                 });
               },
               itemBuilder: (context, index) {
-                final plan = displayPlans[index];
-                final isSelected = plan.key == _selectedPlanKey;
+                final p = displayPlans[index];
+                final isSelected = p.key == _selectedPlanKey;
                 return PricingCard(
-                  plan: plan,
+                  plan: p,
                   isSelected: isSelected,
                   isEn: isEn,
                   onSelect: () {
-                    setState(() => _selectedPlanKey = plan.key);
+                    setState(() => _selectedPlanKey = p.key);
                   },
                 );
               },
@@ -471,7 +609,6 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
           ),
           const SizedBox(height: 12),
 
-          // Page indicator dots
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(
@@ -492,7 +629,6 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
           ),
           const SizedBox(height: 20),
 
-          // Action buttons: [Back] and [Complete Registration]
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Row(
@@ -519,13 +655,16 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
                   child: Container(
                     height: 48,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                      gradient: LinearGradient(
+                        colors: isPaid
+                            ? const [Color(0xFF6366F1), Color(0xFF4F46E5)]
+                            : const [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
                       ),
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF7C3AED).withValues(alpha: 0.35),
+                          color: (isPaid ? const Color(0xFF4F46E5) : const Color(0xFF7C3AED))
+                              .withValues(alpha: 0.35),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -552,11 +691,16 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.check_circle_outline,
-                                    size: 18, color: Colors.white),
+                                Icon(
+                                  isPaid ? Icons.payment_rounded : Icons.check_circle_outline,
+                                  size: 18,
+                                  color: Colors.white,
+                                ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  isEn ? 'Register Now' : 'አሁን ተመዝገብ',
+                                  isPaid
+                                      ? (isEn ? 'Pay & Register' : 'ክፈል እና ተመዝገብ')
+                                      : (isEn ? 'Register Now' : 'አሁን ተመዝገብ'),
                                   style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
@@ -587,9 +731,338 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
       ),
     );
   }
+
+  // ── Step 2: Payment Details & Awaiting Super Admin Review ─────────────────
+  Widget _buildPaymentWaitingStep(bool isEn) {
+    final plan = _selectedPlan;
+    final feeText = 'ETB ${plan?.fee.toStringAsFixed(2) ?? '0.00'}';
+    final telegram = _paymentInfo?.telegramUsername ?? '@shmeta_admin';
+    final accounts = _paymentInfo?.accounts ?? [];
+    final status = _currentStatus;
+
+    return Container(
+      key: const ValueKey('step_2_payment'),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _StepProgressBar(currentStep: 2, isEn: isEn),
+          const SizedBox(height: 20),
+
+          // Plan & Amount Header Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1E1B4B), Color(0xFF312E81)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.between,
+                  children: [
+                    Text(
+                      plan?.label ?? 'Paid Subscription',
+                      style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFF59E0B)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ScaleTransition(
+                            scale: _pulseAnimation,
+                            child: Container(
+                              width: 7,
+                              height: 7,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFF59E0B),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            isEn ? 'Awaiting Review' : 'ግምገማ ይጠብቃል',
+                            style: const TextStyle(color: Color(0xFFFBBF24), fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  feeText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isEn
+                      ? 'Please transfer the exact fee to any of the bank accounts below:'
+                      : 'እባክዎ ትክክለኛውን ክፍያ ከታች ወዳሉት የባንክ ሂሳቦች ይላኩ፡',
+                  style: const TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Bank Accounts Section
+          Row(
+            children: [
+              const Icon(Icons.account_balance_rounded, size: 18, color: Color(0xFF4F46E5)),
+              const SizedBox(width: 8),
+              Text(
+                isEn ? 'Bank Account Details' : 'የባንክ ሂሳብ ዝርዝር',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          if (_loadingPaymentInfo) ...[
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          ] else if (accounts.isEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Text(
+                isEn ? 'Default CBE Account: 1000234567890' : 'መደበኛ CBE ሂሳብ፡ 1000234567890',
+                style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              ),
+            ),
+          ] else ...[
+            ...accounts.map((acc) => _buildAccountTile(acc, isEn)),
+          ],
+          const SizedBox(height: 20),
+
+          // Telegram Action Button
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFBBF7D0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF0284C7),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isEn ? 'Send Payment Screenshot' : 'የክፍያ ደረሰኝ በቴሌግራም ይላኩ',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                          ),
+                          Text(
+                            isEn
+                                ? 'Send receipt screenshot to $telegram for fast verification'
+                                : 'ፈጣን ማረጋገጫ ለማግኘት ደረሰኙን ወደ $telegram ይላኩ',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0284C7),
+                    foregroundColor: Colors.white,
+                    elevation: 1,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => _openTelegram(telegram),
+                  icon: const Icon(Icons.telegram, size: 20),
+                  label: Text(
+                    isEn ? 'Send Screenshot on Telegram ($telegram)' : 'በቴሌግራም ደረሰኝ ላክ ($telegram)',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Real-time Status Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: status?.isRejected == true
+                    ? const Color(0xFFFCA5A5)
+                    : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Column(
+              children: [
+                if (status?.isRejected == true) ...[
+                  const Icon(Icons.cancel_outlined, color: Colors.red, size: 36),
+                  const SizedBox(height: 8),
+                  Text(
+                    isEn ? 'Registration Rejected' : 'ምዝገባው ተቀባይነት አላገኘም',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    status?.rejectionReason ?? (isEn ? 'Payment could not be verified.' : 'ክፍያው አልተረጋገጠም።'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
+                  ),
+                ] else ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6366F1)),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        isEn ? 'Waiting for Super Admin review…' : 'ሱፐር አድሚኑ እስኪያረጋግጥ በመጠበቅ ላይ…',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    isEn
+                        ? 'This page automatically updates the instant your request is approved.'
+                        : 'ጥያቄዎ እንደጸደቀ ይህ ገጽ ወዲያውኑ በራሱ ይዘምናል እና ያሳውቆታል።',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          TextButton(
+            onPressed: () => context.go('/login'),
+            child: Text(
+              isEn ? 'Return to Login' : 'ወደ መግቢያ ተመለስ',
+              style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccountTile(PaymentAccount acc, bool isEn) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEDE9FE),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.account_balance, color: Color(0xFF7C3AED), size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  acc.bank,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                ),
+                Text(
+                  acc.accountName,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                ),
+                Text(
+                  acc.accountNumber,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: isEn ? 'Copy Account Number' : 'የሂሳብ ቁጥሩን ቅዳ',
+            icon: const Icon(Icons.copy_rounded, size: 18, color: Color(0xFF6366F1)),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: acc.accountNumber));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(isEn ? 'Account number copied!' : 'የሂሳብ ቁጥሩ ተቀድቷል!'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-/// A compact two-step breadcrumb bar.
+/// A compact three-step breadcrumb bar.
 class _StepProgressBar extends StatelessWidget {
   const _StepProgressBar({
     required this.currentStep,
@@ -605,13 +1078,13 @@ class _StepProgressBar extends StatelessWidget {
       children: [
         _buildStepBadge(
           stepNumber: 1,
-          label: isEn ? 'Account Info' : 'መረጃ',
+          label: isEn ? 'Account' : 'መረጃ',
           isActive: currentStep == 0,
           isCompleted: currentStep > 0,
         ),
         Expanded(
           child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 8),
+            margin: const EdgeInsets.symmetric(horizontal: 6),
             height: 2,
             color: currentStep > 0
                 ? const Color(0xFF7C3AED)
@@ -620,8 +1093,23 @@ class _StepProgressBar extends StatelessWidget {
         ),
         _buildStepBadge(
           stepNumber: 2,
-          label: isEn ? 'Choose Plan' : 'እቅድ ይምረጡ',
+          label: isEn ? 'Plan' : 'እቅድ',
           isActive: currentStep == 1,
+          isCompleted: currentStep > 1,
+        ),
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 6),
+            height: 2,
+            color: currentStep > 1
+                ? const Color(0xFF7C3AED)
+                : const Color(0xFFE2E8F0),
+          ),
+        ),
+        _buildStepBadge(
+          stepNumber: 3,
+          label: isEn ? 'Payment' : 'ክፍያ',
+          isActive: currentStep == 2,
           isCompleted: false,
         ),
       ],
@@ -643,30 +1131,30 @@ class _StepProgressBar extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 24,
-          height: 24,
+          width: 22,
+          height: 22,
           decoration: BoxDecoration(
             color: bg,
             shape: BoxShape.circle,
           ),
           child: Center(
             child: isCompleted
-                ? const Icon(Icons.check, size: 14, color: Colors.white)
+                ? const Icon(Icons.check, size: 13, color: Colors.white)
                 : Text(
                     '$stepNumber',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: fg,
                     ),
                   ),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 4),
         Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
             color: isActive ? const Color(0xFF0F172A) : const Color(0xFF64748B),
           ),

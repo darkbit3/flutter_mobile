@@ -28,6 +28,12 @@ class LocalNotificationService {
       description: 'Notifications for new chat messages',
       importance: Importance.high,
     ));
+    await androidPlugin?.createNotificationChannel(const AndroidNotificationChannel(
+      'registration_status',
+      'Registration Status',
+      description: 'Notifications for registration approval & updates',
+      importance: Importance.max,
+    ));
   }
 
   Future<void> requestPermission() async {
@@ -61,6 +67,29 @@ class LocalNotificationService {
           'Chat messages',
           channelDescription: 'Notifications for new chat messages',
           importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+    );
+  }
+
+  Future<void> showRegistrationNotification({
+    required String title,
+    required String message,
+  }) async {
+    await initialize();
+    await _plugin.show(
+      DateTime.now().millisecondsSinceEpoch.remainder(1 << 31),
+      title,
+      message,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'registration_status',
+          'Registration Status',
+          channelDescription: 'Notifications for registration approval & updates',
+          importance: Importance.max,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
         ),

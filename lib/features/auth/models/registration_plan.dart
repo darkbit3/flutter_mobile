@@ -33,9 +33,11 @@ class RegistrationResult {
     required this.user,
     required this.plan,
     required this.registrationFree,
+    this.pendingApproval = false,
   });
 
   final UserModel user;
   final RegistrationPlan plan;
   final bool registrationFree;
+  final bool pendingApproval;
 }

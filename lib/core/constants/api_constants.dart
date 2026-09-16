@@ -1,7 +1,7 @@
 class ApiConstants {
   ApiConstants._();
 
-  static const String baseUrl = 'https://backend-1-khts.onrender.com/api';
+  static const String baseUrl = 'https://backend-1-naba.onrender.com/api';
 
   // ── User auth endpoints ─────────────────────────────────────────────────
   static const String userLogin = '/user-auth/login';

@@ -55,22 +55,36 @@ class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerPr
     RegistrationPlan(
       key: 'oneMonth',
       months: 1,
-      label: 'Free for 1 month',
+      label: '1 Month Free Trial',
       fee: 0,
+      enabled: true,
+    ),
+    RegistrationPlan(
+      key: 'twoMonths',
+      months: 2,
+      label: '2 Months Plan',
+      fee: 350,
       enabled: true,
     ),
     RegistrationPlan(
       key: 'threeMonths',
       months: 3,
-      label: 'Free for 3 months',
-      fee: 0,
+      label: '3 Months Plan',
+      fee: 500,
+      enabled: true,
+    ),
+    RegistrationPlan(
+      key: 'sixMonths',
+      months: 6,
+      label: '6 Months Plan',
+      fee: 950,
       enabled: true,
     ),
     RegistrationPlan(
       key: 'oneYear',
       months: 12,
-      label: 'Free for 1 year',
-      fee: 0,
+      label: '1 Year Annual Plan',
+      fee: 1800,
       enabled: true,
     ),
   ];
@@ -246,6 +260,8 @@ class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerPr
     final selectedKey = _selectedPlanKey ??
         (_plans.isNotEmpty ? _plans.first.key : 'oneMonth');
     final normalizedPhone = normalizeEthiopianPhone(_phoneCtrl.text);
+    final plan = _selectedPlan;
+    final bool isPaidTier = selectedKey != 'oneMonth' || (plan != null && !plan.isFree);
 
     final notifier = ref.read(registerProvider.notifier);
     await notifier.register(
@@ -258,13 +274,17 @@ class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerPr
     );
     final state = ref.read(registerProvider);
     if (state.success && state.user != null) {
-      if (state.pendingApproval) {
-        // Step 2: Paid plan pending admin approval
-        setState(() => _step = 2);
-        _loadPaymentInfo();
-        _startStatusPolling(normalizedPhone);
+      if (isPaidTier || state.pendingApproval) {
+        // Paid plan: Awaiting Super Admin review and approval
+        // Discard any tokens received so user is NOT auto-authenticated
+        await ref.read(authRepositoryProvider).logout();
+        if (mounted) {
+          setState(() => _step = 2);
+          _loadPaymentInfo();
+          _startStatusPolling(normalizedPhone);
+        }
       } else {
-        // Free plan: Immediate activation
+        // Only 1 Month Free plan allows immediate activation
         ref.read(authProvider.notifier).setAuthenticated(state.user!);
         if (mounted) {
           await showDialog<void>(
@@ -275,7 +295,7 @@ class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerPr
               title: Text(widget.lang == Lang.en ? 'Welcome to Shmeta' : 'እንኳን ወደ ሽመታ በደህና መጡ'),
               content: Text(
                 widget.lang == Lang.en
-                    ? 'Your account has been activated with ${state.plan?.label ?? 'your plan'}.'
+                    ? 'Your account has been activated with ${state.plan?.label ?? 'your free plan'}.'
                     : 'መለያዎ በ${state.plan?.label ?? 'እቅድዎ'} በተሳካ ሁኔታ ነቅቷል።',
               ),
               actions: [
@@ -541,7 +561,7 @@ class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerPr
   Widget _buildPricingPlansStep(bool isEn, dynamic registerState) {
     final displayPlans = _filteredPlans;
     final plan = _selectedPlan;
-    final bool isPaid = plan != null && !plan.isFree;
+    final bool isPaid = _selectedPlanKey != 'oneMonth' || (plan != null && !plan.isFree);
 
     return Container(
       key: const ValueKey('step_1_pricing'),
@@ -574,6 +594,10 @@ class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerPr
               setState(() {
                 _selectedFilter = filter;
                 _currentPage = 0;
+                final filtered = _filteredPlans;
+                if (filtered.isNotEmpty) {
+                  _selectedPlanKey = filtered.first.key;
+                }
               });
               if (_pageController.hasClients) {
                 _pageController.jumpToPage(0);

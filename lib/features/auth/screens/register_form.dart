@@ -200,12 +200,11 @@ class _RegisterFormState extends ConsumerState<RegisterForm> {
               controller: _phoneCtrl,
               keyboardType: TextInputType.phone,
               inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(9),
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                LengthLimitingTextInputFormatter(14),
               ],
               decoration: InputDecoration(
                 labelText: isEn ? 'Phone Number' : 'ስልክ ቁጥር',
-                prefixText: '251 ',
                 prefixIcon: const Icon(Icons.phone_outlined),
                 hintText:
                     isEn ? '9xxxxxxxx or 7xxxxxxxx' : '9xxxxxxxx ወይም 7xxxxxxxx',

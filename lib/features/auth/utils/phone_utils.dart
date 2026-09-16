@@ -1,7 +1,9 @@
 String normalizeEthiopianPhone(String raw) {
   final digits = raw.replaceAll(RegExp(r'\D+'), '');
-  if (digits.startsWith('251')) return digits;
-  return '251$digits';
+  var local = digits;
+  if (local.startsWith('251')) local = local.substring(3);
+  if (local.startsWith('0')) local = local.substring(1);
+  return '251$local';
 }
 
 bool isValidEthiopianPhone(String raw) {

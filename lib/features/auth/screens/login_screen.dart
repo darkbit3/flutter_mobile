@@ -360,13 +360,12 @@ class _LoginCard extends StatelessWidget {
               controller:   phoneCtr,
               keyboardType: TextInputType.phone,
               inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(9),
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                LengthLimitingTextInputFormatter(14),
               ],
               decoration: InputDecoration(
                 labelText:   phoneLabel,
                 hintText:    phoneHint,
-                prefixText:  '251 ',
                 prefixIcon:  const Icon(Icons.phone_outlined),
                 counterText: '',
               ),

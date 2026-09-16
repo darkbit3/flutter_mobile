@@ -776,7 +776,7 @@ class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerPr
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.between,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       plan?.label ?? 'Paid Subscription',

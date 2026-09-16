@@ -10,6 +10,8 @@ class ApiConstants {
   static const String userAlertThreshold = '/user-auth/alert-threshold';
   static const String userRegister = '/user-auth/register';
   static const String registerPlans = '/user-auth/register-plans';
+  static const String paymentInfo = '/user-auth/payment-info';
+  static const String registrationStatus = '/user-auth/registration-status';
 
   // ── Chat endpoints ────────────────────────────────────────────────────────
   static const String chatPeople = '/chat/people';

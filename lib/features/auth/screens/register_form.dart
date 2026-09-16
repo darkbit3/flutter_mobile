@@ -213,37 +213,16 @@ class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerPr
           : 'ክፍያዎ ተረጋግጧል። መለያዎ አሁን ነቅቷል።',
     );
 
+    // Show auto-countdown dialog — navigates to login automatically after 4 s
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 28),
-            const SizedBox(width: 8),
-            Text(isEn ? 'Approved!' : 'ተፈቅዷል!', style: const TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Text(
-          isEn
-              ? 'Congratulations! Super Admin has reviewed and approved your registration. You can now log into your account.'
-              : 'እንኳን ደስ አለዎት! ሱፐር አድሚኑ ምዝገባዎን አይቶ አጽድቆታል። አሁን ወደ መለያዎ መግባት ይችላሉ።',
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              context.go('/login');
-            },
-            child: Text(isEn ? 'Proceed to Login' : 'ወደ መግቢያ ይሂዱ'),
-          ),
-        ],
+      builder: (ctx) => _ApprovedCountdownDialog(
+        isEn: isEn,
+        onDone: () {
+          if (ctx.mounted) Navigator.of(ctx).pop();
+          if (mounted) context.go('/login');
+        },
       ),
     );
   }
@@ -312,15 +291,34 @@ class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerPr
     }
   }
 
+  /// Opens Telegram: tries the native tg:// deep-link first so the Telegram
+  /// app opens directly (no browser hop), then falls back to https://t.me/.
   Future<void> _openTelegram(String username) async {
     final clean = username.replaceAll('@', '').trim();
-    final uri = Uri.parse('https://t.me/$clean');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
+
+    // 1. Native Telegram deep-link (opens Telegram app directly)
+    final appUri = Uri.parse('tg://resolve?domain=$clean');
+    try {
+      final launched = await launchUrl(
+        appUri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (launched) return; // success — app opened
+    } catch (_) {}
+
+    // 2. Fallback: web link in default browser / Telegram web
+    final webUri = Uri.parse('https://t.me/$clean');
+    try {
+      await launchUrl(webUri, mode: LaunchMode.externalApplication);
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open Telegram: t.me/$clean')),
+          SnackBar(
+            content: Text(
+              'Could not open Telegram. Please open t.me/$clean manually.',
+            ),
+            duration: const Duration(seconds: 4),
+          ),
         );
       }
     }
@@ -1184,6 +1182,180 @@ class _StepProgressBar extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Auto-redirect "Approved" dialog with countdown ─────────────────────────
+/// Shows a celebratory success screen with a live countdown timer.
+/// Automatically calls [onDone] (→ login) when the countdown reaches 0.
+/// The user can also tap "Login Now" to redirect immediately.
+class _ApprovedCountdownDialog extends StatefulWidget {
+  const _ApprovedCountdownDialog({
+    required this.isEn,
+    required this.onDone,
+  });
+
+  final bool isEn;
+  final VoidCallback onDone;
+
+  @override
+  State<_ApprovedCountdownDialog> createState() =>
+      _ApprovedCountdownDialogState();
+}
+
+class _ApprovedCountdownDialogState extends State<_ApprovedCountdownDialog>
+    with SingleTickerProviderStateMixin {
+  int _seconds = 4;
+  Timer? _timer;
+  late AnimationController _bounceCtrl;
+  late Animation<double> _bounceAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _bounceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..repeat(reverse: true);
+    _bounceAnim = Tween<double>(begin: 0.92, end: 1.08).animate(
+      CurvedAnimation(parent: _bounceCtrl, curve: Curves.easeInOut),
+    );
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) { t.cancel(); return; }
+      setState(() => _seconds--);
+      if (_seconds <= 0) {
+        t.cancel();
+        widget.onDone();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _bounceCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEn = widget.isEn;
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      backgroundColor: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Animated check icon
+            ScaleTransition(
+              scale: _bounceAnim,
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF10B981),
+                  size: 52,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            Text(
+              isEn ? '🎉 Registration Approved!' : '🎉 ምዝገባዎ ጸድቋል!',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+
+            Text(
+              isEn
+                  ? 'Your payment has been verified by the Super Admin. Your account is now active!'
+                  : 'ሱፐር አድሚኑ ክፍያዎን አረጋግጧል። መለያዎ አሁን ነቅቷል!',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF475569),
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 22),
+
+            // Countdown ring
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF10B981),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    isEn
+                        ? 'Redirecting to login in ${_seconds}s…'
+                        : 'በ${_seconds} ሰከንድ ወደ መግቢያ…',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF059669),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // "Login Now" immediate button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onPressed: widget.onDone,
+                child: Text(
+                  isEn ? 'Login Now →' : 'አሁን ግባ →',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

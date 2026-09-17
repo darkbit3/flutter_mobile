@@ -19,6 +19,8 @@ class CashierShell extends ConsumerWidget {
         ? (text.isAmharic ? 'ዱቤ' : 'Credits')
         : location.contains('sales')
             ? (text.isAmharic ? 'ሽያጭ' : 'Sales')
+        : location.contains('chat')
+          ? text.chat
             : text.dashboard;
 
     return Scaffold(
@@ -135,6 +137,7 @@ class _CashierDrawer extends StatelessWidget {
                 _DrawerTile(icon: Icons.dashboard_rounded, label: text.dashboard, path: '/cashier-dashboard'),
                 _DrawerTile(icon: Icons.account_balance_wallet_rounded, label: text.isAmharic ? 'ዱቤ' : 'Credits', path: '/cashier-dashboard/credits'),
                 _DrawerTile(icon: Icons.sell_rounded, label: text.isAmharic ? 'ሽያጭ' : 'Sales', path: '/cashier-dashboard/sales'),
+                _DrawerTile(icon: Icons.chat_bubble_outline, label: text.chat, path: '/cashier-dashboard/chat'),
                 _DrawerTile(icon: Icons.lock_reset_rounded, label: text.changePassword, path: '/cashier-dashboard/change-password'),
               ],
             ),

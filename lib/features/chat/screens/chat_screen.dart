@@ -348,7 +348,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         selected: person.id == _selectedPersonId,
         selectedTileColor: AppColors.goldLight,
         leading: CircleAvatar(backgroundColor: AppColors.dark, child: Text(person.avatar, style: const TextStyle(color: Colors.white, fontSize: 12))),
-        title: Text(person.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(person.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            if (person.role == 'Manufacturer' || person.role == 'Reseller') ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: person.role == 'Manufacturer'
+                      ? AppColors.gold.withValues(alpha: 0.16)
+                      : AppColors.success.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  person.role == 'Manufacturer' ? 'MA' : 'RE',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: person.role == 'Manufacturer' ? AppColors.gold : AppColors.success,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
         subtitle: Text(person.role),
         trailing: Icon(person.status == 'Active' ? Icons.circle : Icons.circle_outlined, size: 10, color: person.status == 'Active' ? AppColors.success : AppColors.textLight),
         onTap: () => _selectPerson(person.id),

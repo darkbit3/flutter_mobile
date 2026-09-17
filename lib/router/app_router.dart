@@ -150,6 +150,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, state) => _noAnim(state, const SalesScreen()),
           ),
           GoRoute(
+            path:        '/cashier-dashboard/chat',
+            pageBuilder: (_, state) => _noAnim(state, const ChatScreen()),
+          ),
+          GoRoute(
             path:        '/cashier-dashboard/change-password',
             pageBuilder: (_, state) => _noAnim(state, const ChangePasswordScreen()),
           ),

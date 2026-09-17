@@ -12,6 +12,7 @@ class CutterShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).user;
+    final location = GoRouterState.of(context).matchedLocation;
 
     return Scaffold(
       appBar: AppBar(
@@ -36,8 +37,8 @@ class CutterShell extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 10),
-            const Text('Shmeta',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 19)),
+            Text(location.contains('chat') ? 'Chat' : 'Shmeta',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19)),
           ],
         ),
         actions: [
@@ -206,6 +207,26 @@ class _CutterDrawer extends StatelessWidget {
                       onTap: () {
                         Navigator.of(context).pop();
                         context.go('/cutter-dashboard/change-password');
+                      },
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                    ),
+                    child: ListTile(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      leading: const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 22),
+                      title: const Text('Chat',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        context.go('/cutter-dashboard/chat');
                       },
                     ),
                   ),

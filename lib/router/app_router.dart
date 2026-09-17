@@ -169,6 +169,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, state) => _noAnim(state, const CutterDashboardScreen()),
           ),
           GoRoute(
+            path:        '/cutter-dashboard/chat',
+            pageBuilder: (_, state) => _noAnim(state, const ChatScreen()),
+          ),
+          GoRoute(
             path:        '/cutter-dashboard/change-password',
             pageBuilder: (_, state) => _noAnim(state, const ChangePasswordScreen()),
           ),

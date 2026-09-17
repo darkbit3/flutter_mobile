@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/localization/language_provider.dart';
 import '../../../core/network/dio_client.dart';
@@ -61,12 +64,22 @@ class _ChatGroup {
 }
 
 class _ChatMessage {
-  const _ChatMessage({required this.id, required this.sender, required this.text, required this.time, this.senderRole});
+  const _ChatMessage({
+    required this.id,
+    required this.sender,
+    required this.text,
+    required this.time,
+    this.senderRole,
+    this.imageUrl,
+    this.phoneNumber,
+  });
   final String id;
   final String sender;
   final String text;
   final String time;
   final String? senderRole;
+  final String? imageUrl;
+  final String? phoneNumber;
 }
 
 enum _ChatTab { people, groups }
@@ -92,7 +105,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _loadingList = true;
   bool _loadingMessages = false;
   bool _sending = false;
+  bool _picking = false;
   bool _showConversation = false;
+  File? _pendingImage;        // image picked but not yet sent
+  final _phoneNumberCtr = TextEditingController(); // phone for image post
   Timer? _poller;
 
   _ChatPerson? get _person => _people.where((item) => item.id == _selectedPersonId).firstOrNull;
@@ -227,6 +243,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           text: (message['message'] ?? '').toString(),
           time: _formatTime(message['createdAt']),
           senderRole: message['senderRole']?.toString(),
+          imageUrl: message['imageUrl']?.toString(),
+          phoneNumber: message['phoneNumber']?.toString(),
         );
       }).toList();
 
@@ -234,19 +252,58 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final text = _messageController.text.trim();
     final person = _person;
     final group = _group;
-    if (text.isEmpty || _sending || (person == null && group == null)) return;
+    final image = _pendingImage;
+    final phone = _phoneNumberCtr.text.trim();
+
+    // Must have text OR image
+    if ((text.isEmpty && image == null) || _sending || (person == null && group == null)) return;
+
     final id = group?.id ?? person!.id;
     _messageController.clear();
+
+    // Convert image to base64 data URL if present
+    String? imageUrl;
+    if (image != null) {
+      final bytes = await image.readAsBytes();
+      final b64 = base64Encode(bytes);
+      final ext = image.path.split('.').last.toLowerCase();
+      final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
+      imageUrl = 'data:$mime;base64,$b64';
+    }
+
     setState(() {
       _sending = true;
-      _messages[id] = [..._activeMessages, _ChatMessage(id: 'temp-${DateTime.now().microsecondsSinceEpoch}', sender: 'me', text: text, time: _formatTime(DateTime.now().toIso8601String()))];
+      _pendingImage = null;
+      _phoneNumberCtr.clear();
+      _messages[id] = [
+        ...(_activeMessages),
+        _ChatMessage(
+          id: 'temp-${DateTime.now().microsecondsSinceEpoch}',
+          sender: 'me',
+          text: text,
+          time: _formatTime(DateTime.now().toIso8601String()),
+          imageUrl: imageUrl,
+          phoneNumber: phone.isEmpty ? null : phone,
+        ),
+      ];
     });
+
     try {
       if (group != null) {
-        await ref.read(dioProvider).post('${ApiConstants.chatGroups}/${group.id}/send', data: {'message': text});
+        await ref.read(dioProvider).post(
+          '${ApiConstants.chatGroups}/${group.id}/send',
+          data: {
+            'message': text,
+            if (imageUrl != null) 'image_url': imageUrl,
+            if (phone.isNotEmpty) 'phone_number': phone,
+          },
+        );
         await _loadGroupMessages(group.id);
       } else {
-        await ref.read(dioProvider).post(ApiConstants.chatSend, data: {'receiverId': person!.id, 'message': text});
+        await ref.read(dioProvider).post(
+          ApiConstants.chatSend,
+          data: {'receiverId': person!.id, 'message': text},
+        );
         await _loadPersonMessages(person.id);
       }
     } catch (_) {
@@ -254,6 +311,50 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  Future<void> _pickImage() async {
+    setState(() => _picking = true);
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70, maxWidth: 1024);
+      if (picked == null) return;
+      setState(() => _pendingImage = File(picked.path));
+      // Show phone number dialog for group context
+      if (_group != null && mounted) {
+        _showPhoneNumberDialog();
+      }
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
+  }
+
+  void _showPhoneNumberDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Phone Number', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: _phoneNumberCtr,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(
+            hintText: 'e.g. 0912345678 (optional)',
+            prefixIcon: Icon(Icons.phone_outlined),
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () { _phoneNumberCtr.clear(); Navigator.of(ctx).pop(); },
+            child: const Text('Skip'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatTime(dynamic value) {
@@ -286,6 +387,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _searchController.dispose();
     _messageController.dispose();
     _scrollController.dispose();
+    _phoneNumberCtr.dispose();
     super.dispose();
   }
 
@@ -493,7 +595,74 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              child: Row(children: [Expanded(child: TextField(controller: _messageController, textInputAction: TextInputAction.newline, minLines: 1, maxLines: 4, decoration: InputDecoration(hintText: text.isAmharic ? 'መልዕክት ይጻፉ...' : 'Type a message...'))), const SizedBox(width: 8), IconButton.filled(onPressed: _sending ? null : _sendMessage, icon: _sending ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_rounded))]),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Pending image preview ───────────────────────────────
+                  if (_pendingImage != null && group != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.goldLight,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(_pendingImage!, width: 56, height: 56, fit: BoxFit.cover),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Image ready to send', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                if (_phoneNumberCtr.text.isNotEmpty)
+                                  Text(_phoneNumberCtr.text, style: const TextStyle(fontSize: 11, color: AppColors.textMid)),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 18, color: Colors.red),
+                            onPressed: () => setState(() { _pendingImage = null; _phoneNumberCtr.clear(); }),
+                          ),
+                        ],
+                      ),
+                    ),
+                  // ── Input row ───────────────────────────────────────────
+                  Row(
+                    children: [
+                      if (group != null)
+                        IconButton(
+                          icon: const Icon(Icons.image_outlined, color: AppColors.gold),
+                          tooltip: 'Send image with phone number',
+                          onPressed: _picking ? null : _pickImage,
+                        ),
+                      Expanded(
+                        child: TextField(
+                          controller: _messageController,
+                          textInputAction: TextInputAction.newline,
+                          minLines: 1,
+                          maxLines: 4,
+                          decoration: InputDecoration(
+                            hintText: text.isAmharic ? 'መልዕክት ይጻፉ...' : 'Type a message...',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filled(
+                        onPressed: _sending ? null : _sendMessage,
+                        icon: _sending
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.send_rounded),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ],

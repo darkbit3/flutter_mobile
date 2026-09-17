@@ -1,3 +1,13 @@
+double _parseDouble(dynamic value) {
+  if (value is num) return value.toDouble();
+  return double.tryParse(value?.toString() ?? '') ?? 0.0;
+}
+
+int _parseInt(dynamic value) {
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
+}
+
 class SaleItemModel {
   const SaleItemModel({
     required this.id,
@@ -19,9 +29,9 @@ class SaleItemModel {
         id:        j['id'] as String? ?? '',
         saleId:    j['sale_id'] as String? ?? '',
         material:  j['material'] as String? ?? '',
-        quantity:  (j['quantity'] as num?)?.toDouble() ?? 0.0,
-        unitPrice: (j['unit_price'] as num?)?.toDouble() ?? 0.0,
-        total:     (j['total'] as num?)?.toDouble() ?? 0.0,
+        quantity: _parseDouble(j['quantity']),
+        unitPrice: _parseDouble(j['unit_price']),
+        total:     _parseDouble(j['total']),
       );
 }
 
@@ -58,7 +68,7 @@ class SaleModel {
         cashierId:   j['cashier_id'] as String? ?? '',
         ownerId:     j['owner_id'] as String? ?? '',
         paymentType: j['payment_type'] as String? ?? 'Cash',
-        totalAmount: (j['total_amount'] as num?)?.toDouble() ?? 0.0,
+        totalAmount: _parseDouble(j['total_amount']),
         createdAt:   j['created_at'] as String? ?? '',
         customer:    j['customer'] as String?,
         cashierName: j['cashier_name'] as String?,
@@ -82,10 +92,10 @@ class SaleStats {
   final double totalCash;
 
   factory SaleStats.fromJson(Map<String, dynamic> j) => SaleStats(
-        totalSales:   (j['total_sales'] as num?)?.toInt() ?? 0,
-        totalRevenue: (j['total_revenue'] as num?)?.toDouble() ?? 0.0,
-        totalCredit:  (j['total_credit'] as num?)?.toDouble() ?? 0.0,
-        totalCash:    (j['total_cash'] as num?)?.toDouble() ?? 0.0,
+        totalSales:   _parseInt(j['total_sales']),
+        totalRevenue: _parseDouble(j['total_revenue']),
+        totalCredit:  _parseDouble(j['total_credit']),
+        totalCash:    _parseDouble(j['total_cash']),
       );
 
   factory SaleStats.empty() =>

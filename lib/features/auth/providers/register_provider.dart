@@ -51,7 +51,6 @@ class RegisterNotifier extends StateNotifier<RegisterState> {
 
   Future<void> register({
     required String name,
-    required String email,
     required String phone,
     required String password,
     required String role,
@@ -60,7 +59,7 @@ class RegisterNotifier extends StateNotifier<RegisterState> {
     state = state.copyWith(isLoading: true, error: null, success: false);
     try {
       final result =
-          await _repo.register(name, email, phone, password, role, planKey);
+          await _repo.register(name, phone, password, role, planKey);
       state = state.copyWith(
         isLoading: false,
         success: true,

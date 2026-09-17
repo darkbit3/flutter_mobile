@@ -28,7 +28,6 @@ class RegisterForm extends ConsumerStatefulWidget {
 class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
@@ -132,7 +131,6 @@ class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerPr
     _pulseController.dispose();
     _pageController.dispose();
     _nameCtrl.dispose();
-    _emailCtrl.dispose();
     _phoneCtrl.dispose();
     _passCtrl.dispose();
     _confirmCtrl.dispose();
@@ -245,7 +243,6 @@ class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerPr
     final notifier = ref.read(registerProvider.notifier);
     await notifier.register(
       name: _nameCtrl.text.trim(),
-      email: _emailCtrl.text.trim(),
       phone: normalizedPhone,
       password: _passCtrl.text,
       role: _role,
@@ -386,22 +383,6 @@ class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerPr
               validator: (v) {
                 if (v == null || v.isEmpty) {
                   return isEn ? 'Name required' : 'ስም ያስፈልጋል';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-
-            TextFormField(
-              controller: _emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                labelText: isEn ? 'Email' : 'ኢሜይል',
-                prefixIcon: const Icon(Icons.email_outlined),
-              ),
-              validator: (v) {
-                if (v == null || v.isEmpty) {
-                  return isEn ? 'Email required' : 'ኢሜይል ያስፈልጋል';
                 }
                 return null;
               },

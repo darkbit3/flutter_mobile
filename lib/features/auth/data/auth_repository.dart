@@ -70,14 +70,13 @@ class AuthRepository {
     }
   }
 
-  Future<RegistrationResult> register(String name, String email, String phone,
-      String password, String role, String planKey) async {
+    Future<RegistrationResult> register(String name, String phone, String password,
+      String role, String planKey) async {
     try {
       final res = await _dio.post(
         ApiConstants.userRegister,
         data: {
           'name': name,
-          'email': email,
           'phone': phone,
           'password': password,
           'role': role,

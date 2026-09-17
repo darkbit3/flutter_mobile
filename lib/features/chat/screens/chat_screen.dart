@@ -106,6 +106,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _loadPeople();
     _loadGroups();
     _poller = Timer.periodic(const Duration(seconds: 30), (_) {
+      _loadPeople();
       _loadGroups();
       if (_selectedGroupId != null) _loadGroupMessages(_selectedGroupId!);
       if (_selectedPersonId != null) _loadPersonMessages(_selectedPersonId!);
@@ -120,6 +121,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _people
         ..clear()
         ..addAll(items.map((item) => _ChatPerson.fromJson(item as Map<String, dynamic>)));
+      if (_selectedPersonId != null && !_people.any((person) => person.id == _selectedPersonId)) {
+        _selectedPersonId = null;
+        _messages.removeWhere((key, _) => key != _selectedGroupId);
+        _showConversation = false;
+      }
       if (_selectedPersonId == null && _selectedGroupId == null && _people.isNotEmpty) {
         _selectedPersonId = _people.first.id;
       }
@@ -139,6 +145,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ..addAll(items.map((item) => _ChatGroup.fromJson(item as Map<String, dynamic>)));
       if (_selectedGroupId != null && !_groups.any((group) => group.id == _selectedGroupId)) {
         _selectedGroupId = null;
+        _messages.removeWhere((key, _) => key != _selectedPersonId);
+        _showConversation = false;
       }
     } catch (_) {
       _groups.clear();

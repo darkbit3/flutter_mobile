@@ -35,14 +35,14 @@ PlanTierInfo getTierInfoForPlan(RegistrationPlan plan) {
         'Sales Management & Digital Invoices',
         'Cashier & Staff Account Support',
         'Real-time Stock Tracking',
-        'Email & Phone Support',
+        'Phone Support',
       ],
       amharicFeatures: [
         'ሙሉ የጨርቅ እና የእቃዎች ቁጥጥር',
         'የሽያጭ አስተዳደር እና ደረሰኝ',
         'የካሸር እና ሰራተኛ አካውንት',
         'ቅጽበታዊ የስቶክ ክትትል',
-        'የስልክ እና የኢሜይል ድጋፍ',
+        'የስልክ ድጋፍ',
       ],
     );
   } else if (plan.months <= 3) {

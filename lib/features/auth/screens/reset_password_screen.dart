@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,19 +20,23 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   _Step _step = _Step.phone;
 
   // Phone step
-  final _phoneCtr = TextEditingController();
-  bool _phoneLoading = false;
+  final _phoneCtr   = TextEditingController();
+  bool  _phoneLoading = false;
   String? _phoneError;
-  String? _otpFromServer; // shown in dev so user can see the code
+  String? _otpFromServer; // non-null only in dev mode
 
   // OTP step
-  final _otpCtr     = TextEditingController();
-  final _newPassCtr = TextEditingController();
+  final _otpCtr         = TextEditingController();
+  final _newPassCtr     = TextEditingController();
   final _confirmPassCtr = TextEditingController();
-  bool _otpLoading  = false;
+  bool  _otpLoading  = false;
   String? _otpError;
-  bool _obscureNew  = true;
-  bool _obscureConf = true;
+  bool  _obscureNew  = true;
+  bool  _obscureConf = true;
+
+  // Resend countdown
+  int   _resendSeconds = 0;
+  Timer? _resendTimer;
 
   @override
   void dispose() {
@@ -39,27 +44,53 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     _otpCtr.dispose();
     _newPassCtr.dispose();
     _confirmPassCtr.dispose();
+    _resendTimer?.cancel();
     super.dispose();
+  }
+
+  void _startResendCountdown() {
+    _resendSeconds = 60;
+    _resendTimer?.cancel();
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) { t.cancel(); return; }
+      setState(() {
+        _resendSeconds--;
+        if (_resendSeconds <= 0) t.cancel();
+      });
+    });
   }
 
   // ── Step 1: Check phone ───────────────────────────────────────────────────
   Future<void> _submitPhone() async {
     final phone = _phoneCtr.text.trim();
-    if (phone.isEmpty) { setState(() => _phoneError = 'Phone number is required'); return; }
-    if (phone.length != 10) { setState(() => _phoneError = 'Phone must be exactly 10 digits'); return; }
-    if (!RegExp(r'^0[97]\d{8}$').hasMatch(phone)) { setState(() => _phoneError = 'Must start with 09 or 07'); return; }
+    if (phone.isEmpty) {
+      setState(() => _phoneError = 'Phone number is required');
+      return;
+    }
+    // Accept 09/07 (10 digits) or 251 (12 digits)
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    final valid = (digits.length == 10 && (digits.startsWith('09') || digits.startsWith('07'))) ||
+                  (digits.length == 12 && digits.startsWith('251'));
+    if (!valid) {
+      setState(() => _phoneError = 'Enter 09xxxxxxxx, 07xxxxxxxx, or 251xxxxxxxxx');
+      return;
+    }
 
     setState(() { _phoneLoading = true; _phoneError = null; });
     try {
       final repo   = ref.read(authRepositoryProvider);
       final result = await repo.forgotPasswordCheckPhone(phone);
+      _startResendCountdown();
       setState(() {
         _phoneLoading  = false;
-        _otpFromServer = result['otp'] as String?; // dev only
+        _otpFromServer = result['otp'] as String?; // only present in dev
         _step          = _Step.otp;
       });
     } catch (e) {
-      setState(() { _phoneLoading = false; _phoneError = e.toString(); });
+      setState(() {
+        _phoneLoading = false;
+        _phoneError   = e.toString().replaceFirst('Exception: ', '');
+      });
     }
   }
 
@@ -69,9 +100,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     final newPass = _newPassCtr.text;
     final conf    = _confirmPassCtr.text;
 
-    if (otp.length != 6)          { setState(() => _otpError = 'OTP must be 6 digits'); return; }
-    if (newPass.length < 6)       { setState(() => _otpError = 'Password must be at least 6 characters'); return; }
-    if (newPass != conf)          { setState(() => _otpError = 'Passwords do not match'); return; }
+    if (otp.length != 6)    { setState(() => _otpError = 'OTP must be 6 digits'); return; }
+    if (newPass.length < 6) { setState(() => _otpError = 'Password must be at least 6 characters'); return; }
+    if (newPass != conf)    { setState(() => _otpError = 'Passwords do not match'); return; }
 
     setState(() { _otpLoading = true; _otpError = null; });
     try {
@@ -81,10 +112,22 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         otp:         otp,
         newPassword: newPass,
       );
+      _resendTimer?.cancel();
       setState(() { _otpLoading = false; _step = _Step.done; });
     } catch (e) {
-      setState(() { _otpLoading = false; _otpError = e.toString(); });
+      setState(() {
+        _otpLoading = false;
+        _otpError   = e.toString().replaceFirst('Exception: ', '');
+      });
     }
+  }
+
+  // ── Resend OTP ─────────────────────────────────────────────────────────────
+  Future<void> _resendOtp() async {
+    if (_resendSeconds > 0) return;
+    _otpCtr.clear();
+    setState(() { _step = _Step.phone; _otpError = null; _newPassCtr.clear(); _confirmPassCtr.clear(); });
+    await _submitPhone();
   }
 
   // ── UI ────────────────────────────────────────────────────────────────────
@@ -98,7 +141,14 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         title: const Text('Forgot Password'),
         leading: BackButton(onPressed: () {
           if (_step == _Step.otp) {
-            setState(() { _step = _Step.phone; _otpError = null; _otpCtr.clear(); _newPassCtr.clear(); _confirmPassCtr.clear(); });
+            _resendTimer?.cancel();
+            setState(() {
+              _step = _Step.phone;
+              _otpError = null;
+              _otpCtr.clear();
+              _newPassCtr.clear();
+              _confirmPassCtr.clear();
+            });
           } else {
             context.go('/login');
           }
@@ -115,11 +165,11 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 child: switch (_step) {
                   _Step.phone => _PhoneStep(
                       key: const ValueKey('phone'),
-                      phoneCtr:    _phoneCtr,
-                      loading:     _phoneLoading,
-                      error:       _phoneError,
-                      onSubmit:    _submitPhone,
-                      onBack:      () => context.go('/login'),
+                      phoneCtr: _phoneCtr,
+                      loading:  _phoneLoading,
+                      error:    _phoneError,
+                      onSubmit: _submitPhone,
+                      onBack:   () => context.go('/login'),
                     ),
                   _Step.otp => _OtpStep(
                       key: const ValueKey('otp'),
@@ -132,10 +182,11 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       error:        _otpError,
                       obscureNew:   _obscureNew,
                       obscureConf:  _obscureConf,
-                      onToggleNew:  () => setState(() => _obscureNew = !_obscureNew),
+                      resendSeconds: _resendSeconds,
+                      onToggleNew:  () => setState(() => _obscureNew  = !_obscureNew),
                       onToggleConf: () => setState(() => _obscureConf = !_obscureConf),
                       onSubmit:     _submitOtp,
-                      onResend:     () { setState(() { _step = _Step.phone; _otpCtr.clear(); _newPassCtr.clear(); _confirmPassCtr.clear(); }); },
+                      onResend:     _resendOtp,
                     ),
                   _Step.done => _DoneStep(
                       key: const ValueKey('done'),
@@ -164,8 +215,8 @@ class _PhoneStep extends StatelessWidget {
   });
 
   final TextEditingController phoneCtr;
-  final bool loading;
-  final String? error;
+  final bool     loading;
+  final String?  error;
   final VoidCallback onSubmit;
   final VoidCallback onBack;
 
@@ -175,7 +226,6 @@ class _PhoneStep extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 16),
-        // Icon
         Center(
           child: Container(
             width: 80, height: 80,
@@ -194,42 +244,42 @@ class _PhoneStep extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Enter your registered phone number.\nWe\'ll send you a verification code.',
+          'Enter your registered phone number.\nWe will send a 6-digit verification code via SMS.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 13.5, color: AppColors.textMid, height: 1.5),
         ),
         const SizedBox(height: 32),
 
-        // Card
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: const Border.fromBorderSide(BorderSide(color: AppColors.border)),
-            boxShadow: [BoxShadow(color: AppColors.dark.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4))],
+            boxShadow: [
+              BoxShadow(color: AppColors.dark.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4)),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextFormField(
-                controller: phoneCtr,
+                controller:   phoneCtr,
                 keyboardType: TextInputType.phone,
-                autofocus: true,
+                autofocus:    true,
                 inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(10),
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                  LengthLimitingTextInputFormatter(13),
                 ],
                 decoration: InputDecoration(
-                  labelText: 'Phone Number',
-                  hintText: '09xxxxxxxx or 07xxxxxxxx',
-                  prefixIcon: const Icon(Icons.phone_outlined),
+                  labelText:   'Phone Number',
+                  hintText:    '09xxxxxxxx or 07xxxxxxxx',
+                  prefixIcon:  const Icon(Icons.phone_outlined),
                   counterText: '',
-                  errorText: error,
+                  errorText:   error,
                 ),
               ),
               const SizedBox(height: 20),
-
               SizedBox(
                 height: 50,
                 child: FilledButton(
@@ -241,7 +291,7 @@ class _PhoneStep extends StatelessWidget {
                   onPressed: loading ? null : onSubmit,
                   child: loading
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Send OTP', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                      : const Text('Send OTP via SMS', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(height: 12),
@@ -249,6 +299,7 @@ class _PhoneStep extends StatelessWidget {
                 onPressed: onBack,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.dark,
+                  side: const BorderSide(color: AppColors.border),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
@@ -277,21 +328,23 @@ class _OtpStep extends StatelessWidget {
     required this.error,
     required this.obscureNew,
     required this.obscureConf,
+    required this.resendSeconds,
     required this.onToggleNew,
     required this.onToggleConf,
     required this.onSubmit,
     required this.onResend,
   });
 
-  final String phone;
+  final String  phone;
   final String? devOtp;
   final TextEditingController otpCtr;
   final TextEditingController newPassCtr;
   final TextEditingController confirmCtr;
-  final bool loading;
+  final bool    loading;
   final String? error;
-  final bool obscureNew;
-  final bool obscureConf;
+  final bool    obscureNew;
+  final bool    obscureConf;
+  final int     resendSeconds;
   final VoidCallback onToggleNew;
   final VoidCallback onToggleConf;
   final VoidCallback onSubmit;
@@ -321,11 +374,12 @@ class _OtpStep extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Code sent to $phone\nEnter it below and set your new password.',
+          'A 6-digit code was sent via SMS to\n$phone',
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 13, color: AppColors.textMid, height: 1.5),
         ),
-        // Dev banner — shows the OTP code
+
+        // Dev-only banner — only shown when server returned the OTP
         if (devOtp != null) ...[
           const SizedBox(height: 12),
           Container(
@@ -350,41 +404,45 @@ class _OtpStep extends StatelessWidget {
         ],
         const SizedBox(height: 24),
 
-        // Card
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: const Border.fromBorderSide(BorderSide(color: AppColors.border)),
-            boxShadow: [BoxShadow(color: AppColors.dark.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4))],
+            boxShadow: [
+              BoxShadow(color: AppColors.dark.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4)),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // OTP field
               TextFormField(
-                controller: otpCtr,
+                controller:  otpCtr,
                 keyboardType: TextInputType.number,
-                textAlign: TextAlign.center,
-                autofocus: true,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 10),
+                textAlign:   TextAlign.center,
+                autofocus:   true,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(6),
+                ],
+                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 12),
                 decoration: const InputDecoration(
-                  labelText: 'Verification Code',
-                  hintText: '• • • • • •',
+                  labelText:   'Verification Code',
+                  hintText:    '• • • • • •',
                   counterText: '',
-                  prefixIcon: Icon(Icons.pin_outlined),
+                  prefixIcon:  Icon(Icons.pin_outlined),
                 ),
               ),
               const SizedBox(height: 16),
 
               // New password
               TextFormField(
-                controller: newPassCtr,
+                controller:  newPassCtr,
                 obscureText: obscureNew,
                 decoration: InputDecoration(
-                  labelText: 'New Password',
+                  labelText:  'New Password',
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(obscureNew ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 20),
@@ -396,10 +454,10 @@ class _OtpStep extends StatelessWidget {
 
               // Confirm password
               TextFormField(
-                controller: confirmCtr,
+                controller:  confirmCtr,
                 obscureText: obscureConf,
                 decoration: InputDecoration(
-                  labelText: 'Confirm Password',
+                  labelText:  'Confirm Password',
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(obscureConf ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 20),
@@ -422,7 +480,9 @@ class _OtpStep extends StatelessWidget {
                     children: [
                       Icon(Icons.error_outline, color: Colors.red.shade400, size: 18),
                       const SizedBox(width: 8),
-                      Expanded(child: Text(error!, style: TextStyle(color: Colors.red.shade700, fontSize: 13))),
+                      Expanded(
+                        child: Text(error!, style: TextStyle(color: Colors.red.shade700, fontSize: 13)),
+                      ),
                     ],
                   ),
                 ),
@@ -444,9 +504,19 @@ class _OtpStep extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
+
+              // Resend button with countdown
               TextButton(
-                onPressed: onResend,
-                child: const Text('Resend Code', style: TextStyle(color: AppColors.gold)),
+                onPressed: resendSeconds > 0 ? null : onResend,
+                child: Text(
+                  resendSeconds > 0
+                      ? 'Resend code in ${resendSeconds}s'
+                      : 'Resend Code',
+                  style: TextStyle(
+                    color: resendSeconds > 0 ? AppColors.textMid : AppColors.gold,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),

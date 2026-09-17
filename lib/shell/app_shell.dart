@@ -43,6 +43,11 @@ class AppShell extends ConsumerWidget {
       icon: Icons.history_rounded,
       path: '/history',
     ));
+    list.add(const _NavDest(
+      label: 'Orders',
+      icon: Icons.assignment_rounded,
+      path: '/orders',
+    ));
     list.add(_NavDest(
       label: text.chat,
       icon: Icons.chat_bubble_outline,

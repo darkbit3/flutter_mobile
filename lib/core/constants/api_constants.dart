@@ -46,4 +46,7 @@ class ApiConstants {
 
   // ── Cutter endpoints ─────────────────────────────────────────────────────
   static const String cutters = '/cutters';
+  static const String materialOrders = '/material-orders';
+  static const String materialOrdersMine = '/material-orders/mine';
+  static const String materialOrdersOwner = '/material-orders/owner';
 }

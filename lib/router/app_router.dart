@@ -18,6 +18,7 @@ import '../features/cutter/screens/cutter_screen.dart';
 import '../features/cutter/screens/cutter_dashboard_screen.dart';
 import '../features/chat/screens/chat_screen.dart';
 import '../features/history/screens/history_screen.dart';
+import '../features/orders/screens/material_orders_screen.dart';
 import '../shell/app_shell.dart';
 import '../shell/cashier_shell.dart';
 import '../shell/cutter_shell.dart';
@@ -61,6 +62,9 @@ class _RouterNotifier extends ChangeNotifier {
         if (!loc.startsWith('/cashier-dashboard')) return '/cashier-dashboard';
       } else if (auth.user?.isCutter ?? false) {
         if (!loc.startsWith('/cutter-dashboard')) return '/cutter-dashboard';
+      } else if (auth.user?.isReseller ?? false) {
+        // Resellers cannot access the cutter screen
+        if (loc == '/cutter') return '/dashboard';
       }
     }
 
@@ -123,6 +127,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, state) => _noAnim(state, const HistoryScreen()),
           ),
           GoRoute(
+            path:        '/orders',
+            pageBuilder: (_, state) => _noAnim(state, const MaterialOrdersScreen()),
+          ),
+          GoRoute(
             path:        '/chat',
             pageBuilder: (_, state) => _noAnim(state, const ChatScreen()),
           ),
@@ -154,6 +162,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, state) => _noAnim(state, const ChatScreen()),
           ),
           GoRoute(
+            path:        '/cashier-dashboard/orders',
+            pageBuilder: (_, state) => _noAnim(state, const MaterialOrdersScreen()),
+          ),
+          GoRoute(
             path:        '/cashier-dashboard/change-password',
             pageBuilder: (_, state) => _noAnim(state, const ChangePasswordScreen()),
           ),
@@ -171,6 +183,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path:        '/cutter-dashboard/chat',
             pageBuilder: (_, state) => _noAnim(state, const ChatScreen()),
+          ),
+          GoRoute(
+            path:        '/cutter-dashboard/orders',
+            pageBuilder: (_, state) => _noAnim(state, const MaterialOrdersScreen()),
           ),
           GoRoute(
             path:        '/cutter-dashboard/change-password',

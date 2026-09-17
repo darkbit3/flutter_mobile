@@ -231,6 +231,25 @@ class _CutterDrawer extends StatelessWidget {
                     ),
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                    ),
+                    child: ListTile(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      leading: const Icon(Icons.assignment_rounded, color: Colors.white, size: 22),
+                      title: const Text('Orders', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        context.go('/cutter-dashboard/orders');
+                      },
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

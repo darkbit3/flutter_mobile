@@ -4,6 +4,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/constants/api_constants.dart';
 import '../models/material_model.dart';
+import '../../orders/models/material_order_model.dart';
 
 final materialRepositoryProvider = Provider<MaterialRepository>((ref) {
   return MaterialRepository(ref.watch(dioProvider));
@@ -34,6 +35,38 @@ class MaterialRepository {
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }
+  }
+
+  Future<MaterialOrder> createMaterialOrder({
+    String? materialId,
+    required String materialName,
+    required double quantity,
+    String? note,
+  }) async {
+    try {
+      final res = await _dio.post(ApiConstants.materialOrders, data: {
+        if (materialId != null) 'materialId': materialId,
+        'materialName': materialName,
+        'quantity': quantity,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      });
+      return MaterialOrder.fromJson(res.data['data'] as Map<String, dynamic>);
+    } on DioException catch (e) { throw ApiException.fromDio(e); }
+  }
+
+  Future<List<MaterialOrder>> fetchMaterialOrders({required bool ownerView}) async {
+    try {
+      final res = await _dio.get(ownerView ? ApiConstants.materialOrdersOwner : ApiConstants.materialOrdersMine);
+      return (res.data['data'] as List<dynamic>)
+          .map((item) => MaterialOrder.fromJson(item as Map<String, dynamic>)).toList();
+    } on DioException catch (e) { throw ApiException.fromDio(e); }
+  }
+
+  Future<MaterialOrder> updateMaterialOrderStatus(String id, String status) async {
+    try {
+      final res = await _dio.patch('${ApiConstants.materialOrders}/$id/status', data: {'status': status});
+      return MaterialOrder.fromJson(res.data['data'] as Map<String, dynamic>);
+    } on DioException catch (e) { throw ApiException.fromDio(e); }
   }
 
   Future<MaterialItem> createMaterial({

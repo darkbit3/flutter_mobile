@@ -138,6 +138,7 @@ class _CashierDrawer extends StatelessWidget {
                 _DrawerTile(icon: Icons.account_balance_wallet_rounded, label: text.isAmharic ? 'ዱቤ' : 'Credits', path: '/cashier-dashboard/credits'),
                 _DrawerTile(icon: Icons.sell_rounded, label: text.isAmharic ? 'ሽያጭ' : 'Sales', path: '/cashier-dashboard/sales'),
                 _DrawerTile(icon: Icons.chat_bubble_outline, label: text.chat, path: '/cashier-dashboard/chat'),
+                const _DrawerTile(icon: Icons.assignment_rounded, label: 'Orders', path: '/cashier-dashboard/orders'),
                 _DrawerTile(icon: Icons.lock_reset_rounded, label: text.changePassword, path: '/cashier-dashboard/change-password'),
               ],
             ),

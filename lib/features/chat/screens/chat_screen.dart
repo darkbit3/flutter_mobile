@@ -31,6 +31,12 @@ class _ChatPerson {
   }
 }
 
+String _displayBusinessRole(String role) {
+  if (role == 'Manufacturer') return 'Garment and Boutique';
+  if (role == 'Reseller') return 'Textile and Accessory';
+  return role;
+}
+
 class _ChatCategory {
   const _ChatCategory({required this.id, required this.name, this.imageUrl});
   final String id;
@@ -485,7 +491,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ],
           ],
         ),
-        subtitle: Text(person.role),
+        subtitle: Text(_displayBusinessRole(person.role)),
         trailing: Icon(person.status == 'Active' ? Icons.circle : Icons.circle_outlined, size: 10, color: person.status == 'Active' ? AppColors.success : AppColors.textLight),
         onTap: () => _selectPerson(person.id),
       );
@@ -580,14 +586,97 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           itemBuilder: (_, index) {
                             final message = _activeMessages[index];
                             final mine = message.sender == 'me';
+                            final hasImage = message.imageUrl != null && message.imageUrl!.isNotEmpty;
+                            final hasPhone = message.phoneNumber != null && message.phoneNumber!.isNotEmpty;
+                            final hasText = message.text.isNotEmpty;
                             return Align(
                               alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
                               child: Container(
-                                constraints: const BoxConstraints(maxWidth: 340),
+                                constraints: const BoxConstraints(maxWidth: 300),
                                 margin: const EdgeInsets.only(bottom: 10),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                decoration: BoxDecoration(color: mine ? AppColors.dark : AppColors.background, borderRadius: BorderRadius.circular(16)),
-                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [if (group != null && !mine) Text(message.senderRole ?? 'Member', style: const TextStyle(fontSize: 10, color: AppColors.textMid)), Text(message.text, style: TextStyle(color: mine ? Colors.white : AppColors.dark)), const SizedBox(height: 4), Text(message.time, style: TextStyle(fontSize: 10, color: mine ? Colors.white70 : AppColors.textMid))]),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: mine ? AppColors.dark : AppColors.background,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // sender label in group
+                                    if (group != null && !mine)
+                                      Padding(
+                                        padding: const EdgeInsets.only(bottom: 4),
+                                        child: Text(
+                                          message.senderRole ?? 'Member',
+                                          style: const TextStyle(fontSize: 10, color: AppColors.textMid),
+                                        ),
+                                      ),
+                                    // image
+                                    if (hasImage) ...[
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: message.imageUrl!.startsWith('data:')
+                                            ? Image.memory(
+                                                base64Decode(message.imageUrl!.split(',').last),
+                                                width: 220,
+                                                fit: BoxFit.cover,
+                                              )
+                                            : Image.network(
+                                                message.imageUrl!,
+                                                width: 220,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+                                              ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                    ],
+                                    // phone number badge
+                                    if (hasPhone)
+                                      Container(
+                                        margin: const EdgeInsets.only(bottom: 4),
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: mine
+                                              ? Colors.white.withValues(alpha: 0.15)
+                                              : AppColors.gold.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.phone_outlined,
+                                              size: 11,
+                                              color: mine ? Colors.white70 : AppColors.gold,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              message.phoneNumber!,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: mine ? Colors.white : AppColors.gold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    // text
+                                    if (hasText)
+                                      Text(
+                                        message.text,
+                                        style: TextStyle(color: mine ? Colors.white : AppColors.dark),
+                                      ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      message.time,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: mine ? Colors.white70 : AppColors.textMid,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             );
                           },

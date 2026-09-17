@@ -287,7 +287,7 @@ class _CutterDashboardScreenState
                               const SizedBox(height: 4),
                               Text(
                                 _searchQuery.isEmpty
-                                    ? 'No stock has been added by your manufacturer yet.'
+                                    ? 'No stock has been added by your garment and boutique workspace yet.'
                                     : 'Try adjusting your search or filter options.',
                                 style: TextStyle(
                                   fontSize: 13,

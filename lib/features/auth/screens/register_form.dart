@@ -398,11 +398,11 @@ class _RegisterFormState extends ConsumerState<RegisterForm> with SingleTickerPr
               items: [
                 DropdownMenuItem(
                   value: 'Manufacturer',
-                  child: Text(isEn ? 'Manufacturer (አምራች)' : 'አምራች (Manufacturer)'),
+                  child: Text(isEn ? 'Garment and Boutique' : 'ጋርመንት እና ቡቲክ'),
                 ),
                 DropdownMenuItem(
                   value: 'Reseller',
-                  child: Text(isEn ? 'Reseller (ነጋዴ)' : 'ነጋዴ (Reseller)'),
+                  child: Text(isEn ? 'Textile and Accessory' : 'ጨርቃ ጨርቅ እና አክሰሰሪ'),
                 ),
               ],
               onChanged: (value) {

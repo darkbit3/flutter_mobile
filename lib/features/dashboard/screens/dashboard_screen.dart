@@ -485,7 +485,7 @@ class _OwnerCommandCenter extends StatelessWidget {
     final roleSurface = isManufacturer
         ? const Color(0xFFE6FFFB)
         : const Color(0xFFEFF6FF);
-    final roleLabel = isManufacturer ? 'Manufacturer workspace' : 'Reseller workspace';
+    final roleLabel = isManufacturer ? 'Garment and Boutique workspace' : 'Textile and Accessory workspace';
     final roleMessage = isManufacturer
         ? 'Keep production stock, cutters, and cashier activity moving.'
         : 'Keep your inventory, sales team, and customer balances in view.';

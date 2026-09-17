@@ -69,6 +69,40 @@ class MaterialRepository {
     }
   }
 
+  Future<CuttingRecord> recordCut({
+    required String materialId,
+    required double consumedQuantity,
+    required double producedCloth,
+    required String outputMaterialName,
+    required double wasteQuantity,
+    String? note,
+  }) async {
+    try {
+      final res = await _dio.post(ApiConstants.materialCut, data: {
+        'materialId': materialId,
+        'consumedQuantity': consumedQuantity,
+        'producedCloth': producedCloth,
+        'outputMaterialName': outputMaterialName,
+        'wasteQuantity': wasteQuantity,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      });
+      return CuttingRecord.fromJson(res.data['data'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<List<CuttingRecord>> fetchCutHistory() async {
+    try {
+      final res = await _dio.get(ApiConstants.materialCutHistory);
+      return (res.data['data'] as List<dynamic>)
+          .map((j) => CuttingRecord.fromJson(j as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   Future<MaterialItem> updateMaterial({
     required String id,
     required String name,

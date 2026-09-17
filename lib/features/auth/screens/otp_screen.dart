@@ -4,7 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../constants/lang_constants.dart';
 
 class OtpScreen extends ConsumerStatefulWidget {
-  const OtpScreen({Key? key, required this.lang}) : super(key: key);
+  const OtpScreen({super.key, required this.lang});
 
   final Lang lang;
 

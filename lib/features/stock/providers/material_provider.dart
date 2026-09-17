@@ -16,6 +16,11 @@ final ownerMaterialsProvider =
   return ref.watch(materialRepositoryProvider).fetchOwnerMaterials();
 });
 
+final cuttingHistoryProvider =
+    FutureProvider.autoDispose<List<CuttingRecord>>((ref) async {
+  return ref.watch(materialRepositoryProvider).fetchCutHistory();
+});
+
 /// Notifier that manages create / delete with optimistic UI
 class MaterialNotifier extends AsyncNotifier<List<MaterialItem>> {
   @override

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/sale_provider.dart';
 import '../models/sale_model.dart';
 
@@ -9,6 +10,10 @@ class SalesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(saleListProvider);
+    final user = ref.watch(authProvider).user;
+    final ownSales = user == null
+        ? <SaleModel>[]
+        : state.sales.where((sale) => sale.cashierId == user.id).toList();
 
     return RefreshIndicator(
       color: const Color(0xFF10B981),
@@ -106,7 +111,7 @@ class SalesScreen extends ConsumerWidget {
                 ),
               ),
             )
-          else if (state.sales.isEmpty)
+          else if (ownSales.isEmpty)
             SliverFillRemaining(
               child: Center(
                 child: Column(
@@ -145,7 +150,7 @@ class SalesScreen extends ConsumerWidget {
                             color: const Color(0xFF10B981),
                             borderRadius: BorderRadius.circular(2))),
                     const SizedBox(width: 8),
-                    Text('${state.sales.length} records',
+                    Text('${ownSales.length} records',
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
@@ -162,10 +167,10 @@ class SalesScreen extends ConsumerWidget {
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (ctx, i) => _SaleCard(
-                    sale: state.sales[i],
-                    onTap: () => _showDetail(context, state.sales[i]),
+                    sale: ownSales[i],
+                    onTap: () => _showDetail(context, ownSales[i]),
                   ),
-                  childCount: state.sales.length,
+                  childCount: ownSales.length,
                 ),
               ),
             ),

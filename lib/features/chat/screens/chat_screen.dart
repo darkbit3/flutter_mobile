@@ -28,18 +28,35 @@ class _ChatPerson {
   }
 }
 
+class _ChatCategory {
+  const _ChatCategory({required this.id, required this.name, this.imageUrl});
+  final String id;
+  final String name;
+  final String? imageUrl;
+
+  factory _ChatCategory.fromJson(Map<String, dynamic> json) => _ChatCategory(
+        id: (json['id'] ?? '').toString(),
+        name: (json['name'] ?? '').toString(),
+        imageUrl: json['image_url']?.toString(),
+      );
+}
+
 class _ChatGroup {
-  const _ChatGroup({required this.id, required this.name, required this.description, required this.memberCount});
+  const _ChatGroup({required this.id, required this.name, required this.description, required this.memberCount, required this.categories});
   final String id;
   final String name;
   final String description;
   final int memberCount;
+  final List<_ChatCategory> categories;
 
   factory _ChatGroup.fromJson(Map<String, dynamic> json) => _ChatGroup(
         id: (json['id'] ?? '').toString(),
         name: (json['name'] ?? 'Group').toString(),
         description: (json['description'] ?? '').toString(),
         memberCount: int.tryParse('${json['memberCount'] ?? 0}') ?? 0,
+        categories: ((json['categories'] as List?) ?? [])
+            .map((c) => _ChatCategory.fromJson(c as Map<String, dynamic>))
+            .toList(),
       );
 }
 
@@ -342,7 +359,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         selectedTileColor: const Color(0xFFECFDF5),
         leading: const CircleAvatar(backgroundColor: AppColors.success, child: Icon(Icons.groups_rounded, color: Colors.white)),
         title: Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(group.description.isEmpty ? '${group.memberCount} members' : group.description, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(
+          group.categories.isNotEmpty
+              ? '${group.categories.length} categor${group.categories.length == 1 ? 'y' : 'ies'}'
+              : group.description.isEmpty ? '${group.memberCount} members' : group.description,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         trailing: Text('${group.memberCount}', style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
         onTap: () => _selectGroup(group.id),
       );
@@ -367,6 +390,48 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               subtitle: Text(group != null ? '${group.memberCount} members' : person?.role ?? ''),
             ),
             const Divider(height: 1),
+            // Category chips (read-only, for groups)
+            if (group != null && group.categories.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF0FDF4),
+                  border: Border(bottom: BorderSide(color: Color(0xFFD1FAE5))),
+                ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: group.categories.map((cat) => Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFD1FAE5)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (cat.imageUrl != null)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: ClipOval(
+                                child: Image.network(
+                                  cat.imageUrl!,
+                                  width: 14,
+                                  height: 14,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                ),
+                              ),
+                            ),
+                          Text(cat.name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF047857))),
+                        ],
+                      ),
+                    )).toList(),
+                  ),
+                ),
+              ),
             Expanded(
               child: _loadingMessages
                   ? const Center(child: CircularProgressIndicator(color: AppColors.gold))

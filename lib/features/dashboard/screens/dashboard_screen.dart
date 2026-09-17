@@ -308,9 +308,9 @@ class DashboardScreen extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.account_balance_wallet_rounded,
+                      const Icon(Icons.account_balance_wallet_rounded,
                           color: Colors.white, size: 20),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                         Text(text.creditAccounts,
                           style: const TextStyle(
                               color: Colors.white,
@@ -384,9 +384,9 @@ class DashboardScreen extends ConsumerWidget {
                       border: Border.all(color: AppColors.border)),
                   child: Column(
                     children: [
-                      Icon(Icons.account_balance_wallet_outlined,
+                      const Icon(Icons.account_balance_wallet_outlined,
                           size: 36, color: AppColors.textLight),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                         Text(text.noCreditCustomers,
                           style: const TextStyle(
                               color: AppColors.textMid,

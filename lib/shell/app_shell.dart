@@ -346,7 +346,7 @@ class _AppDrawer extends StatelessWidget {
                       color: Colors.redAccent, size: 20),
                   const SizedBox(width: 14),
                   Text(text.logout,
-                      style: TextStyle(
+                      style: const TextStyle(
                           color: Colors.redAccent,
                           fontWeight: FontWeight.w500)),
                   const Spacer(),

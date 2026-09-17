@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_image_picker.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../stock/data/material_repository.dart';
 import '../../stock/models/material_model.dart';
 import '../../stock/providers/material_provider.dart';
 
@@ -33,6 +34,7 @@ class _CutterDashboardScreenState
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
     final materialsAsync = ref.watch(materialsProvider);
+    final cuttingHistoryAsync = ref.watch(cuttingHistoryProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -131,6 +133,26 @@ class _CutterDashboardScreenState
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: _CuttingCalculatorBanner(materials: materials),
+                      ),
+                    ),
+
+                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+                    cuttingHistoryAsync.when(
+                      loading: () => const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Center(child: CircularProgressIndicator(color: _kPurple)),
+                        ),
+                      ),
+                      error: (_, __) => const SliverToBoxAdapter(
+                        child: SizedBox.shrink(),
+                      ),
+                      data: (records) => SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _CuttingHistorySection(records: records),
+                        ),
                       ),
                     ),
 
@@ -545,23 +567,86 @@ class _CuttingCalculatorBanner extends StatelessWidget {
   }
 }
 
+class _CuttingHistorySection extends StatelessWidget {
+  const _CuttingHistorySection({required this.records});
+
+  final List<CuttingRecord> records;
+
+  @override
+  Widget build(BuildContext context) {
+    if (records.isEmpty) return const SizedBox.shrink();
+    final visible = records.take(5).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Recent Production',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.dark),
+        ),
+        const SizedBox(height: 10),
+        ...visible.map((record) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.content_cut_rounded, color: _kPurple, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(record.materialName,
+                            style: const TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${record.outputMaterialName} • Used ${record.consumedQuantity.toStringAsFixed(2)} • Waste ${record.wasteQuantity.toStringAsFixed(2)}',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '${record.producedCloth.toStringAsFixed(0)} cloth',
+                    style: const TextStyle(
+                      color: _kPurple,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            )),
+      ],
+    );
+  }
+}
+
 // ── Interactive Cutting Calculator Sheet ──────────────────────────────────────
-class _CuttingCalculatorSheet extends StatefulWidget {
+class _CuttingCalculatorSheet extends ConsumerStatefulWidget {
   const _CuttingCalculatorSheet({required this.materials});
   final List<MaterialItem> materials;
 
   @override
-  State<_CuttingCalculatorSheet> createState() =>
+  ConsumerState<_CuttingCalculatorSheet> createState() =>
       _CuttingCalculatorSheetState();
 }
 
-class _CuttingCalculatorSheetState extends State<_CuttingCalculatorSheet> {
+class _CuttingCalculatorSheetState
+    extends ConsumerState<_CuttingCalculatorSheet> {
   MaterialItem? _selectedMaterial;
   final _stockCtr = TextEditingController();
   final _cutSizeCtr = TextEditingController();
+  final _outputNameCtr = TextEditingController();
 
   double _totalPieces = 0;
   double _remainingWaste = 0;
+  bool _isSaving = false;
 
   void _calculate() {
     final stock = double.tryParse(_stockCtr.text) ?? 0;
@@ -584,10 +669,58 @@ class _CuttingCalculatorSheetState extends State<_CuttingCalculatorSheet> {
     });
   }
 
+  Future<void> _recordProduction() async {
+    final material = _selectedMaterial;
+    final consumed = double.tryParse(_stockCtr.text) ?? 0;
+    if (material == null || consumed <= 0 || _totalPieces <= 0 || _outputNameCtr.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select material, enter valid cut values, and name the finished product.')),
+      );
+      return;
+    }
+    if (consumed > material.quantity) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Only ${material.quantity} ${material.unitLabel} remains.')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      await ref.read(materialRepositoryProvider).recordCut(
+            materialId: material.id,
+            consumedQuantity: consumed,
+            producedCloth: _totalPieces,
+            outputMaterialName: _outputNameCtr.text,
+            wasteQuantity: _remainingWaste,
+          );
+        ref.invalidate(materialsProvider);
+        ref.invalidate(cuttingHistoryProvider);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${_totalPieces.toInt()} cloth recorded. ${material.name} remaining stock updated.',
+          ),
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString()), backgroundColor: Colors.red.shade700),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     _stockCtr.dispose();
     _cutSizeCtr.dispose();
+    _outputNameCtr.dispose();
     super.dispose();
   }
 
@@ -660,6 +793,18 @@ class _CuttingCalculatorSheetState extends State<_CuttingCalculatorSheet> {
                   }
                 });
               },
+            ),
+            const SizedBox(height: 14),
+
+            TextField(
+              controller: _outputNameCtr,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                labelText: 'Finished product name',
+                hintText: 'e.g. Blue Shirt',
+                prefixIcon: const Icon(Icons.checkroom_rounded),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
             ),
             const SizedBox(height: 14),
 
@@ -755,7 +900,7 @@ class _CuttingCalculatorSheetState extends State<_CuttingCalculatorSheet> {
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: _isSaving ? null : _recordProduction,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _kPurple,
                   foregroundColor: Colors.white,
@@ -763,9 +908,14 @@ class _CuttingCalculatorSheetState extends State<_CuttingCalculatorSheet> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Close Calculator',
-                    style:
-                        TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                child: _isSaving
+                  ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Record Cut & Update Stock',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
               ),
             ),
           ],

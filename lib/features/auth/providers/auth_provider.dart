@@ -190,7 +190,7 @@ class AlertThresholdState {
 class AlertThresholdNotifier extends StateNotifier<AlertThresholdState> {
   AlertThresholdNotifier(this._authRef, this._repo) : super(const AlertThresholdState());
 
-  final StateNotifierProviderRef _authRef;
+  final Ref _authRef;
   final AuthRepository _repo;
 
   Future<void> updateThreshold(double threshold) async {

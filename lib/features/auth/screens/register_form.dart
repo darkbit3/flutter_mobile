@@ -1321,8 +1321,8 @@ class _ApprovedCountdownDialogState extends State<_ApprovedCountdownDialog>
                   const SizedBox(width: 10),
                   Text(
                     isEn
-                        ? 'Redirecting to login in ${_seconds}s…'
-                        : 'በ${_seconds} ሰከንድ ወደ መግቢያ…',
+                        ? 'Redirecting to login in $_seconds s…'
+                        : 'በ$_seconds ሰከንድ ወደ መግቢያ…',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,

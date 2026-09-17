@@ -30,6 +30,8 @@ class ApiConstants {
   // ── Materials / Stock endpoints ──────────────────────────────────────────
   static const String materials = '/materials';
   static const String materialsOwnerStock = '/materials/owner-stock';
+  static const String materialCut = '/materials/cut';
+  static const String materialCutHistory = '/materials/cut-history';
 
   // ── Forgot password (OTP) ────────────────────────────────────────────────
   static const String forgotPasswordCheckPhone =

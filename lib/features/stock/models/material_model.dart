@@ -145,3 +145,42 @@ class MaterialHistoryLog {
   final String note;
   final String dateStr;
 }
+
+class CuttingRecord {
+  const CuttingRecord({
+    required this.id,
+    required this.materialId,
+    required this.materialName,
+    required this.consumedQuantity,
+    required this.producedCloth,
+    required this.outputMaterialName,
+    required this.wasteQuantity,
+    required this.createdAt,
+    this.cutterName,
+    this.note,
+  });
+
+  final String id;
+  final String materialId;
+  final String materialName;
+  final double consumedQuantity;
+  final double producedCloth;
+  final String outputMaterialName;
+  final double wasteQuantity;
+  final String createdAt;
+  final String? cutterName;
+  final String? note;
+
+  factory CuttingRecord.fromJson(Map<String, dynamic> json) => CuttingRecord(
+        id: json['id'] as String? ?? '',
+        materialId: json['material_id'] as String? ?? '',
+        materialName: json['material_name'] as String? ?? 'Material',
+        consumedQuantity: (json['consumed_quantity'] as num?)?.toDouble() ?? 0,
+        producedCloth: (json['produced_cloth'] as num?)?.toDouble() ?? 0,
+        outputMaterialName: json['output_material_name'] as String? ?? 'Finished Cloth',
+        wasteQuantity: (json['waste_quantity'] as num?)?.toDouble() ?? 0,
+        createdAt: json['created_at'] as String? ?? '',
+        cutterName: json['cutter_name'] as String?,
+        note: json['note'] as String?,
+      );
+}
